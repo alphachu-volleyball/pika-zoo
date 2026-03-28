@@ -49,6 +49,8 @@ class PikachuVolleyballEnv(ParallelEnv):
         random_mode: bool = False,
         p1_skin: str = "yellow",
         p2_skin: str = "yellow",
+        p1_label: str = "",
+        p2_label: str = "",
     ) -> None:
         super().__init__()
 
@@ -59,6 +61,8 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.random_mode = random_mode
         self._p1_skin = p1_skin
         self._p2_skin = p2_skin
+        self._p1_label = p1_label
+        self._p2_label = p2_label
 
         self.possible_agents = ["player_1", "player_2"]
 
@@ -212,7 +216,11 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.player2,
             self._physics.ball,
             self._scores,
-            metadata={"mode": "random" if self.random_mode else "normal"},
+            metadata={
+                "mode": "random" if self.random_mode else "normal",
+                "p1_label": self._p1_label,
+                "p2_label": self._p2_label,
+            },
         )
 
     def close(self) -> None:
