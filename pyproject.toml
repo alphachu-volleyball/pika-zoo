@@ -13,6 +13,9 @@ dependencies = [
     "numpy>=1.24.0",
 ]
 
+[project.scripts]
+demo = "pika_zoo.scripts.demo:main"
+
 [project.optional-dependencies]
 rendering = [
     "pygame>=2.1.0",
