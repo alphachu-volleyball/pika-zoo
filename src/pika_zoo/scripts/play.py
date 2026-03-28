@@ -31,6 +31,7 @@ def play(
     fps: int = 25,
     render: bool = True,
     record: str | None = None,
+    random_mode: bool = False,
 ) -> None:
     """Run a Pikachu Volleyball match.
 
@@ -42,6 +43,7 @@ def play(
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
         record: Output MP4 path, or None to skip recording.
+        random_mode: Randomize ball starting position/velocity each round.
     """
     p1_human = p1 == "human"
     p2_human = p2 == "human"
@@ -73,6 +75,7 @@ def play(
         render_mode=render_mode,
         ai_policies=ai_policies,
         winning_score=winning_score,
+        random_mode=random_mode,
     )
     e.reset(seed=seed)
 
@@ -178,6 +181,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
+    parser.add_argument("--random", action="store_true", help="Random ball start position/velocity each round")
     args = parser.parse_args(argv)
 
     play(
@@ -188,6 +192,7 @@ def main(argv: list[str] | None = None) -> None:
         fps=args.fps,
         render=not args.no_render,
         record=args.record,
+        random_mode=args.random,
     )
 
 
