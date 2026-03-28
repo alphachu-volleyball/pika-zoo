@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import warnings
+from pathlib import Path
 
 from pika_zoo.ai.registry import get_ai, get_skin
 from pika_zoo.env import env
@@ -63,14 +64,31 @@ def play(
             p2_human = False
 
     ai_policies = {}
-    if not p1_human:
-        ai_policies["player_1"] = get_ai(p1)
-    if not p2_human:
-        ai_policies["player_2"] = get_ai(p2)
+    sb3_policies: dict[str, object] = {}  # SB3 models need obs updates
 
-    # Resolve skins: explicit > registry > "yellow" (human)
-    resolved_p1_skin = p1_skin or ("yellow" if p1_human else get_skin(p1))
-    resolved_p2_skin = p2_skin or ("yellow" if p2_human else get_skin(p2))
+    for agent, spec, is_human in [("player_1", p1, p1_human), ("player_2", p2, p2_human)]:
+        if is_human:
+            continue
+        if Path(spec).exists():
+            from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
+
+            policy = SB3ModelPolicy(spec)
+            ai_policies[agent] = policy
+            sb3_policies[agent] = policy
+        else:
+            ai_policies[agent] = get_ai(spec)
+
+    def _resolve_skin(spec: str, is_human: bool, explicit: str | None) -> str:
+        if explicit:
+            return explicit
+        if is_human:
+            return "yellow"
+        if Path(spec).exists():
+            return "white"  # SB3 model default skin
+        return get_skin(spec)
+
+    resolved_p1_skin = _resolve_skin(p1, p1_human, p1_skin)
+    resolved_p2_skin = _resolve_skin(p2, p2_human, p2_skin)
 
     if render:
         render_mode = "human"
@@ -79,8 +97,15 @@ def play(
     else:
         render_mode = None
 
-    p1_label = "human" if p1_human else p1
-    p2_label = "human" if p2_human else p2
+    def _make_label(spec: str, is_human: bool) -> str:
+        if is_human:
+            return "human"
+        if Path(spec).exists():
+            return Path(spec).stem
+        return spec
+
+    p1_label = _make_label(p1, p1_human)
+    p2_label = _make_label(p2, p2_human)
 
     e = env(
         render_mode=render_mode,
@@ -153,6 +178,12 @@ def play(
                 actions["player_1"] = get_action_from_keys(keys, "player_1")
             if p2_human:
                 actions["player_2"] = get_action_from_keys(keys, "player_2")
+
+        # Feed observations to SB3 models before step
+        if sb3_policies:
+            current_obs = e._get_observations()
+            for agent, policy in sb3_policies.items():
+                policy.set_observation(current_obs[agent])
 
         obs, rewards, terms, truncs, infos = e.step(actions)
 
