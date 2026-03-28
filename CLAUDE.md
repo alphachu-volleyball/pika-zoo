@@ -40,6 +40,8 @@ src/pika_zoo/
 ├── ai/                  # Pluggable AI system
 │   ├── protocol.py      # AIPolicy (typing.Protocol)
 │   ├── builtin.py       # Original gorisanson AI (with intentional bugs)
+│   ├── random.py        # RandomAI baseline
+│   ├── sb3_adapter.py   # SB3 model → AIPolicy adapter (optional dep)
 │   └── registry.py      # Name-based AI lookup + skin mapping
 ├── env/                 # PettingZoo ParallelEnv
 │   ├── actions.py       # 18 discrete actions + ActionConverter (debouncing)
