@@ -14,9 +14,10 @@ import pygame
 ASSETS_DIR = Path(__file__).parent / "assets"
 
 
-def _load(name: str) -> pygame.Surface:
+def _load(name: str, alpha: bool = True) -> pygame.Surface:
     """Load a sprite image from the assets directory."""
-    return pygame.image.load(str(ASSETS_DIR / name)).convert_alpha()
+    surface = pygame.image.load(str(ASSETS_DIR / name))
+    return surface.convert_alpha() if alpha else surface.convert()
 
 
 def load_all_sprites() -> dict[str, pygame.Surface | tuple[pygame.Surface, ...]]:
@@ -49,15 +50,15 @@ def load_all_sprites() -> dict[str, pygame.Surface | tuple[pygame.Surface, ...]]
     sprites["shadow"] = _load("shadow.png")
     sprites["cloud"] = _load("cloud.png")
     sprites["wave"] = _load("wave.png")
-    sprites["sky_blue"] = _load("sky_blue.png")
-    sprites["mountain"] = _load("mountain.png")
-    sprites["ground_red"] = _load("ground_red.png")
-    sprites["ground_yellow"] = _load("ground_yellow.png")
-    sprites["ground_line"] = _load("ground_line.png")
-    sprites["ground_line_leftmost"] = _load("ground_line_leftmost.png")
-    sprites["ground_line_rightmost"] = _load("ground_line_rightmost.png")
-    sprites["net_pillar"] = _load("net_pillar.png")
-    sprites["net_pillar_top"] = _load("net_pillar_top.png")
+    sprites["sky_blue"] = _load("sky_blue.png", alpha=False)
+    sprites["mountain"] = _load("mountain.png", alpha=False)
+    sprites["ground_red"] = _load("ground_red.png", alpha=False)
+    sprites["ground_yellow"] = _load("ground_yellow.png", alpha=False)
+    sprites["ground_line"] = _load("ground_line.png", alpha=False)
+    sprites["ground_line_leftmost"] = _load("ground_line_leftmost.png", alpha=False)
+    sprites["ground_line_rightmost"] = _load("ground_line_rightmost.png", alpha=False)
+    sprites["net_pillar"] = _load("net_pillar.png", alpha=False)
+    sprites["net_pillar_top"] = _load("net_pillar_top.png", alpha=False)
 
     return sprites
 

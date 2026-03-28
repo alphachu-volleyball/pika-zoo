@@ -94,6 +94,7 @@ class PygameRenderer:
             overlay.draw(self._screen, metadata or {})
 
         if self._render_mode == "human":
+            pygame.event.pump()
             pygame.display.flip()
             assert self._clock is not None
             self._clock.tick(FPS)
@@ -192,13 +193,14 @@ class PygameRenderer:
         ball_sprite = s["ball"][ball.rotation]
         _blit_center(self._screen, ball_sprite, (ball.x, ball.y))
 
-        # Punch effect
+        # Punch effect (shrinks by 2 pixels per frame, same as original)
         if ball.punch_effect_radius > 0:
             punch = s["ball_punch"]
             size = ball.punch_effect_radius * 2
             if size > 0:
                 scaled = pygame.transform.scale(punch, (size, size))
                 _blit_center(self._screen, scaled, (ball.punch_effect_x, ball.punch_effect_y))
+            ball.punch_effect_radius -= 2
 
         # Shadow
         _blit_center(self._screen, s["shadow"], (ball.x, SHADOW_Y))
