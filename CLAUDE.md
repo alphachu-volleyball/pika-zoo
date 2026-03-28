@@ -40,7 +40,7 @@ src/pika_zoo/
 ├── ai/                  # Pluggable AI system
 │   ├── protocol.py      # AIPolicy (typing.Protocol)
 │   ├── builtin.py       # Original gorisanson AI (with intentional bugs)
-│   └── registry.py      # Name-based AI lookup
+│   └── registry.py      # Name-based AI lookup + skin mapping
 ├── env/                 # PettingZoo ParallelEnv
 │   ├── actions.py       # 18 discrete actions + ActionConverter (debouncing)
 │   ├── observations.py  # 35-element agent-centric observation builder
@@ -53,10 +53,13 @@ src/pika_zoo/
 │   └── record_episode.py        # Per-round frame recording + JSON export
 ├── rendering/           # Pygame renderer + overlays
 │   ├── renderer.py      # PygameRenderer (human + rgb_array modes)
-│   ├── sprites.py       # Sprite loading + color tinting
+│   ├── sprites.py       # Sprite loading + per-player skins
 │   ├── overlays.py      # TextOverlay, MetadataOverlay
-│   └── assets/          # PNG sprite files
-└── utils/               # Replay, random mode (planned)
+│   └── assets/          # PNG sprites (pikachu_sprites/{skin}/, ball, bg)
+└── scripts/             # CLI commands
+    ├── play.py          # uv run play (watch, play, record)
+    ├── keyboard.py      # Keyboard input handler
+    └── video.py         # FFmpegWriter for MP4 recording
 ```
 
 ### Key Design: AI Separation
