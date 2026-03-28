@@ -46,7 +46,11 @@ src/pika_zoo/
 │   ├── observations.py  # 35-element agent-centric observation builder
 │   └── pikachu_volleyball.py  # PikachuVolleyballEnv(ParallelEnv)
 ├── wrappers/            # PettingZoo wrappers
-│   └── convert_single_agent.py  # ParallelEnv → Gymnasium (for SB3)
+│   ├── convert_single_agent.py  # ParallelEnv → Gymnasium (for SB3)
+│   ├── simplify_action.py       # 18 → 13 relative-direction actions
+│   ├── normalize_observation.py # Min-max normalization to [0, 1]
+│   ├── reward_shaping.py        # Ball position + normal state rewards
+│   └── record_episode.py        # Per-round frame recording + JSON export
 ├── rendering/           # Pygame renderer + overlays (planned)
 └── utils/               # Replay, random mode (planned)
 ```
