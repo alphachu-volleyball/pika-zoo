@@ -58,6 +58,7 @@ class PikachuVolleyballEnv(ParallelEnv):
 
         self._action_converters: dict[str, ActionConverter] = {}
         self._physics: PikaPhysics | None = None
+        self._renderer = None  # Lazy-initialized PygameRenderer
         self._scores: list[int] = [0, 0]
         self._is_player2_serve: bool = False
         self._round_ended: bool = False
@@ -188,11 +189,25 @@ class PikachuVolleyballEnv(ParallelEnv):
         return observations, rewards, terminations, truncations, infos
 
     def render(self) -> np.ndarray | None:
-        # Rendering is Phase 5 — not yet implemented
-        return None
+        if self.render_mode is None or self._physics is None:
+            return None
+
+        if self._renderer is None:
+            from pika_zoo.rendering.renderer import PygameRenderer
+
+            self._renderer = PygameRenderer(render_mode=self.render_mode)
+
+        return self._renderer.render(
+            self._physics.player1,
+            self._physics.player2,
+            self._physics.ball,
+            self._scores,
+        )
 
     def close(self) -> None:
-        pass
+        if self._renderer is not None:
+            self._renderer.close()
+            self._renderer = None
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         assert self._physics is not None
