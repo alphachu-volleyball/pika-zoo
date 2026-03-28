@@ -51,7 +51,11 @@ src/pika_zoo/
 │   ├── normalize_observation.py # Min-max normalization to [0, 1]
 │   ├── reward_shaping.py        # Ball position + normal state rewards
 │   └── record_episode.py        # Per-round frame recording + JSON export
-├── rendering/           # Pygame renderer + overlays (planned)
+├── rendering/           # Pygame renderer + overlays
+│   ├── renderer.py      # PygameRenderer (human + rgb_array modes)
+│   ├── sprites.py       # Sprite loading + color tinting
+│   ├── overlays.py      # TextOverlay, MetadataOverlay
+│   └── assets/          # PNG sprite files
 └── utils/               # Replay, random mode (planned)
 ```
 
