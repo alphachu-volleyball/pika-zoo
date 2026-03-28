@@ -168,7 +168,8 @@ class PygameRenderer:
         assert self._sprites is not None
 
         sprite_idx = get_player_sprite_index(player.state, player.frame_number)
-        sprite = self._sprites["pikachu"][sprite_idx]
+        sprite_key = "pikachu_p2" if player.is_player2 else "pikachu_p1"
+        sprite = self._sprites[sprite_key][sprite_idx]
 
         # Determine if sprite should be flipped
         if not player.is_player2:
