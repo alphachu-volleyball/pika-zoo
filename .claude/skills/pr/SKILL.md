@@ -1,7 +1,6 @@
 ---
 name: pr
 description: Create a pull request following the branch conventions (feat→release squash, release→main merge)
-disable-model-invocation: true
 ---
 
 # Create Pull Request

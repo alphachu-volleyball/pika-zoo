@@ -1,7 +1,6 @@
 ---
 name: cleanup
 description: Clean up local branches after a PR has been merged on GitHub
-disable-model-invocation: true
 ---
 
 # Branch Cleanup

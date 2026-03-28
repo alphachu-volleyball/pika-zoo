@@ -40,15 +40,26 @@ src/pika_zoo/
 ├── ai/                  # Pluggable AI system
 │   ├── protocol.py      # AIPolicy (typing.Protocol)
 │   ├── builtin.py       # Original gorisanson AI (with intentional bugs)
-│   └── registry.py      # Name-based AI lookup
+│   └── registry.py      # Name-based AI lookup + skin mapping
 ├── env/                 # PettingZoo ParallelEnv
 │   ├── actions.py       # 18 discrete actions + ActionConverter (debouncing)
 │   ├── observations.py  # 35-element agent-centric observation builder
 │   └── pikachu_volleyball.py  # PikachuVolleyballEnv(ParallelEnv)
 ├── wrappers/            # PettingZoo wrappers
-│   └── convert_single_agent.py  # ParallelEnv → Gymnasium (for SB3)
-├── rendering/           # Pygame renderer + overlays (planned)
-└── utils/               # Replay, random mode (planned)
+│   ├── convert_single_agent.py  # ParallelEnv → Gymnasium (for SB3)
+│   ├── simplify_action.py       # 18 → 13 relative-direction actions
+│   ├── normalize_observation.py # Min-max normalization to [0, 1]
+│   ├── reward_shaping.py        # Ball position + normal state rewards
+│   └── record_episode.py        # Per-round frame recording + JSON export
+├── rendering/           # Pygame renderer + overlays
+│   ├── renderer.py      # PygameRenderer (human + rgb_array modes)
+│   ├── sprites.py       # Sprite loading + per-player skins
+│   ├── overlays.py      # TextOverlay, MetadataOverlay
+│   └── assets/          # PNG sprites (pikachu_sprites/{skin}/, ball, bg)
+└── scripts/             # CLI commands
+    ├── play.py          # uv run play (watch, play, record)
+    ├── keyboard.py      # Keyboard input handler
+    └── video.py         # FFmpegWriter for MP4 recording
 ```
 
 ### Key Design: AI Separation

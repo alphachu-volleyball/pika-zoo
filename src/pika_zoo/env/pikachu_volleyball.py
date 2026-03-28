@@ -46,6 +46,11 @@ class PikachuVolleyballEnv(ParallelEnv):
         serve: str = "winner",
         ai_policies: dict[str, AIPolicy] | None = None,
         render_mode: str | None = None,
+        noisy: bool = False,
+        p1_skin: str = "yellow",
+        p2_skin: str = "yellow",
+        p1_label: str = "",
+        p2_label: str = "",
     ) -> None:
         super().__init__()
 
@@ -53,11 +58,17 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.serve = serve
         self.ai_policies = ai_policies or {}
         self.render_mode = render_mode
+        self.noisy = noisy
+        self._p1_skin = p1_skin
+        self._p2_skin = p2_skin
+        self._p1_label = p1_label
+        self._p2_label = p2_label
 
         self.possible_agents = ["player_1", "player_2"]
 
         self._action_converters: dict[str, ActionConverter] = {}
         self._physics: PikaPhysics | None = None
+        self._renderer = None  # Lazy-initialized PygameRenderer
         self._scores: list[int] = [0, 0]
         self._is_player2_serve: bool = False
         self._round_ended: bool = False
@@ -85,7 +96,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.agents = list(self.possible_agents)
 
         self._physics = PikaPhysics(self._np_random)
-        self._physics.ball.initialize_for_new_round(self._is_player2_serve)
+        self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
         self._scores = [0, 0]
         self._round_ended = False
         self._game_ended = False
@@ -117,7 +128,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._round_ended and not self._game_ended:
             self._physics.player1.initialize_for_new_round(self._np_random)
             self._physics.player2.initialize_for_new_round(self._np_random)
-            self._physics.ball.initialize_for_new_round(self._is_player2_serve)
+            self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
             self._round_ended = False
             for converter in self._action_converters.values():
                 converter.reset()
@@ -188,11 +199,30 @@ class PikachuVolleyballEnv(ParallelEnv):
         return observations, rewards, terminations, truncations, infos
 
     def render(self) -> np.ndarray | None:
-        # Rendering is Phase 5 — not yet implemented
-        return None
+        if self.render_mode is None or self._physics is None:
+            return None
+
+        if self._renderer is None:
+            from pika_zoo.rendering.renderer import PygameRenderer
+
+            self._renderer = PygameRenderer(render_mode=self.render_mode, p1_skin=self._p1_skin, p2_skin=self._p2_skin)
+
+        return self._renderer.render(
+            self._physics.player1,
+            self._physics.player2,
+            self._physics.ball,
+            self._scores,
+            metadata={
+                "mode": "noisy" if self.noisy else "normal",
+                "p1_label": self._p1_label,
+                "p2_label": self._p2_label,
+            },
+        )
 
     def close(self) -> None:
-        pass
+        if self._renderer is not None:
+            self._renderer.close()
+            self._renderer = None
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         assert self._physics is not None

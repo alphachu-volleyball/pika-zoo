@@ -15,3 +15,5 @@ build/
 # OS
 .DS_Store
 
+# Recordings
+*.mp4
