@@ -31,7 +31,7 @@ def play(
     fps: int = 25,
     render: bool = True,
     record: str | None = None,
-    random_mode: bool = False,
+    noisy: bool = False,
     p1_skin: str | None = None,
     p2_skin: str | None = None,
 ) -> None:
@@ -45,7 +45,7 @@ def play(
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
         record: Output MP4 path, or None to skip recording.
-        random_mode: Randomize ball starting position/velocity each round.
+        noisy: Add small noise to ball starting position/velocity each round.
         p1_skin: Pikachu skin for P1 (default: auto from AI registry, "yellow" for human).
         p2_skin: Pikachu skin for P2 (default: auto from AI registry, "yellow" for human).
     """
@@ -86,7 +86,7 @@ def play(
         render_mode=render_mode,
         ai_policies=ai_policies,
         winning_score=winning_score,
-        random_mode=random_mode,
+        noisy=noisy,
         p1_skin=resolved_p1_skin,
         p2_skin=resolved_p2_skin,
         p1_label=p1_label,
@@ -194,7 +194,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
-    parser.add_argument("--random", action="store_true", help="Random ball start position/velocity each round")
+    parser.add_argument("--noisy", action="store_true", help="Add noise to ball start position/velocity")
     parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
     parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
     args = parser.parse_args(argv)
@@ -207,7 +207,7 @@ def main(argv: list[str] | None = None) -> None:
         fps=args.fps,
         render=not args.no_render,
         record=args.record,
-        random_mode=args.random,
+        noisy=args.noisy,
         p1_skin=args.p1_skin,
         p2_skin=args.p2_skin,
     )

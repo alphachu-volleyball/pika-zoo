@@ -274,7 +274,7 @@ class PygameRenderer:
     # ------------------------------------------------------------------
 
     def _draw_mode_label(self, metadata: dict[str, Any]) -> None:
-        """Draw mode label (normal/random) above the net."""
+        """Draw mode label (normal/noisy) at top center."""
         mode = metadata.get("mode")
         if not mode:
             return
@@ -282,7 +282,7 @@ class PygameRenderer:
         if self._mode_font is None:
             pygame.font.init()
             self._mode_font = pygame.font.SysFont("monospace", 14, bold=True)
-        color = (0, 0, 255) if mode == "random" else (0, 0, 0)
+        color = (0, 0, 255) if mode == "noisy" else (0, 0, 0)
         rendered = self._mode_font.render(mode, True, color)
         x = SCREEN_WIDTH // 2 - rendered.get_width() // 2
         self._screen.blit(rendered, (x, 10))

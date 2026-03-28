@@ -141,25 +141,24 @@ class Ball:
         self.initialize_for_new_round(is_player2_serve)
 
     def initialize_for_new_round(
-        self, is_player2_serve: bool, random_mode: bool = False, rng: Generator | None = None
+        self, is_player2_serve: bool, noisy: bool = False, rng: Generator | None = None
     ) -> None:
         """Reset ball state for a new round.
 
         Args:
             is_player2_serve: Which side serves.
-            random_mode: If True, ball starts at center with random velocity.
-            rng: Random generator (required if random_mode is True).
+            noisy: If True, add small noise to starting position and velocity.
+            rng: Random generator (required if noisy is True).
         """
-        if random_mode and rng is not None:
-            self.x = GROUND_HALF_WIDTH
-            self.y = 0
-            self.x_velocity = int(rng.integers(-20, 20))
-            self.y_velocity = int(rng.integers(-10, 0))
-        else:
-            self.x = 56 if not is_player2_serve else GROUND_WIDTH - 56
-            self.y = 0
-            self.x_velocity = 0
-            self.y_velocity = 1
+        self.x = 56 if not is_player2_serve else GROUND_WIDTH - 56
+        self.y = 0
+        self.x_velocity = 0
+        self.y_velocity = 1
+
+        if noisy and rng is not None:
+            self.x += int(rng.integers(-5, 6))  # ±5 pixels
+            self.x_velocity = int(rng.integers(-3, 4))  # small horizontal nudge
+
         self.punch_effect_radius: int = 0
         self.is_power_hit: bool = False
 
