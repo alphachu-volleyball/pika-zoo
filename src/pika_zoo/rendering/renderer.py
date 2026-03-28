@@ -102,6 +102,16 @@ class PygameRenderer:
         else:
             return np.transpose(pygame.surfarray.pixels3d(self._screen), axes=(1, 0, 2)).copy()
 
+    def capture_frame(self) -> np.ndarray | None:
+        """Capture the current screen as an RGB array, regardless of render mode.
+
+        Works in both 'human' and 'rgb_array' modes.
+        Returns None if pygame is not initialized.
+        """
+        if not self._initialized or self._screen is None:
+            return None
+        return np.transpose(pygame.surfarray.pixels3d(self._screen), axes=(1, 0, 2)).copy()
+
     def close(self) -> None:
         """Clean up pygame resources."""
         if self._initialized:
