@@ -41,7 +41,10 @@ src/pika_zoo/
 │   ├── protocol.py      # AIPolicy (typing.Protocol)
 │   ├── builtin.py       # Original gorisanson AI (with intentional bugs)
 │   └── registry.py      # Name-based AI lookup
-├── env/                 # RL environment layer (planned)
+├── env/                 # PettingZoo ParallelEnv
+│   ├── actions.py       # 18 discrete actions + ActionConverter (debouncing)
+│   ├── observations.py  # 35-element agent-centric observation builder
+│   └── pikachu_volleyball.py  # PikachuVolleyballEnv(ParallelEnv)
 ├── wrappers/            # PettingZoo wrappers (planned)
 ├── rendering/           # Pygame renderer + overlays (planned)
 └── utils/               # Replay, random mode (planned)
