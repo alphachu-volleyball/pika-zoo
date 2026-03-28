@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 demo = "pika_zoo.scripts.demo:main"
+record = "pika_zoo.scripts.record:main"
 
 [project.optional-dependencies]
 rendering = [
