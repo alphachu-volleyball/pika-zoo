@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-demo = "pika_zoo.scripts.demo:main"
+play = "pika_zoo.scripts.play:main"
 
 [project.optional-dependencies]
 rendering = [
