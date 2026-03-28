@@ -140,12 +140,26 @@ class Ball:
 
         self.initialize_for_new_round(is_player2_serve)
 
-    def initialize_for_new_round(self, is_player2_serve: bool) -> None:
-        """Reset ball state for a new round."""
-        self.x: int = 56 if not is_player2_serve else GROUND_WIDTH - 56
-        self.y: int = 0
-        self.x_velocity: int = 0
-        self.y_velocity: int = 1
+    def initialize_for_new_round(
+        self, is_player2_serve: bool, random_mode: bool = False, rng: Generator | None = None
+    ) -> None:
+        """Reset ball state for a new round.
+
+        Args:
+            is_player2_serve: Which side serves.
+            random_mode: If True, ball starts at center with random velocity.
+            rng: Random generator (required if random_mode is True).
+        """
+        if random_mode and rng is not None:
+            self.x = GROUND_HALF_WIDTH
+            self.y = 0
+            self.x_velocity = int(rng.integers(-20, 20))
+            self.y_velocity = int(rng.integers(-10, 0))
+        else:
+            self.x = 56 if not is_player2_serve else GROUND_WIDTH - 56
+            self.y = 0
+            self.x_velocity = 0
+            self.y_velocity = 1
         self.punch_effect_radius: int = 0
         self.is_power_hit: bool = False
 

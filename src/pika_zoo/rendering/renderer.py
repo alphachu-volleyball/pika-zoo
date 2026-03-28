@@ -45,6 +45,7 @@ class PygameRenderer:
         self._screen: pygame.Surface | None = None
         self._clock: pygame.time.Clock | None = None
         self._sprites: dict[str, Any] | None = None
+        self._mode_font: pygame.font.Font | None = None
         self._initialized = False
 
     def _init_pygame(self) -> None:
@@ -88,6 +89,7 @@ class PygameRenderer:
         self._draw_player(player2)
         self._draw_ball(ball)
         self._draw_scores(scores)
+        self._draw_mode_label(metadata or {})
 
         # Draw overlays
         for overlay in self._overlays:
@@ -233,3 +235,21 @@ class PygameRenderer:
         if scores[1] >= 10:
             self._screen.blit(numbers[1], (356, 10))
         self._screen.blit(numbers[scores[1] % 10], (388, 10))
+
+    # ------------------------------------------------------------------
+    # Mode label
+    # ------------------------------------------------------------------
+
+    def _draw_mode_label(self, metadata: dict[str, Any]) -> None:
+        """Draw mode label (normal/random) above the net."""
+        mode = metadata.get("mode")
+        if not mode:
+            return
+        assert self._screen is not None
+        if self._mode_font is None:
+            pygame.font.init()
+            self._mode_font = pygame.font.SysFont("monospace", 14, bold=True)
+        color = (0, 0, 255) if mode == "random" else (0, 0, 0)
+        rendered = self._mode_font.render(mode, True, color)
+        x = SCREEN_WIDTH // 2 - rendered.get_width() // 2
+        self._screen.blit(rendered, (x, 10))
