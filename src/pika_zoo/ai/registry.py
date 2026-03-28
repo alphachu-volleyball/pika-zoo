@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pika_zoo.ai.builtin import BuiltinAI
+from pika_zoo.ai.random import RandomAI
 
 DEFAULT_SKIN = "lime"
 
@@ -52,3 +53,4 @@ def get_skin(name: str) -> str:
 
 # Auto-register builtins
 register_ai("builtin", BuiltinAI, skin="orange")
+register_ai("random", RandomAI, skin="lime")
