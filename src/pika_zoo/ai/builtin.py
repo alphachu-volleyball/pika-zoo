@@ -9,7 +9,6 @@ Lines 803-1032 (letComputerDecideUserInput, decideWhetherInputPowerHit,
 expectedLandingPointXWhenPowerHit)
 """
 
-
 from __future__ import annotations
 
 from numpy.random import Generator
