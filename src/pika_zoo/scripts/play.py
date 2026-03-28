@@ -79,6 +79,9 @@ def play(
     else:
         render_mode = None
 
+    p1_label = "human" if p1_human else p1
+    p2_label = "human" if p2_human else p2
+
     e = env(
         render_mode=render_mode,
         ai_policies=ai_policies,
@@ -86,12 +89,12 @@ def play(
         random_mode=random_mode,
         p1_skin=resolved_p1_skin,
         p2_skin=resolved_p2_skin,
+        p1_label=p1_label,
+        p2_label=p2_label,
     )
     e.reset(seed=seed)
 
     # Print match info
-    p1_label = "Human" if p1_human else p1
-    p2_label = "Human" if p2_human else p2
     print(f"Pikachu Volleyball — {p1_label} vs {p2_label} (first to {winning_score})")
     if p1_human:
         print("  P1: D(left) G(right) R(up) V(down) Z(power hit)")

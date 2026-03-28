@@ -97,6 +97,7 @@ class PygameRenderer:
         self._draw_player(player2)
         self._draw_ball(ball)
         self._draw_scores(scores)
+        self._draw_player_labels(metadata or {})
         self._draw_mode_label(metadata or {})
 
         # Draw overlays
@@ -244,6 +245,29 @@ class PygameRenderer:
         if scores[1] >= 10:
             self._screen.blit(numbers[1], (356, 10))
         self._screen.blit(numbers[scores[1] % 10], (388, 10))
+
+    # ------------------------------------------------------------------
+    # Player labels
+    # ------------------------------------------------------------------
+
+    def _draw_player_labels(self, metadata: dict[str, Any]) -> None:
+        """Draw player labels (model names) below scores."""
+        assert self._screen is not None
+        if self._mode_font is None:
+            pygame.font.init()
+            self._mode_font = pygame.font.SysFont("monospace", 14, bold=True)
+
+        p1_label = metadata.get("p1_label", "")
+        p2_label = metadata.get("p2_label", "")
+
+        if p1_label:
+            rendered = self._mode_font.render(p1_label, True, (0, 0, 0))
+            self._screen.blit(rendered, (14, 42))
+
+        if p2_label:
+            rendered = self._mode_font.render(p2_label, True, (0, 0, 0))
+            x = SCREEN_WIDTH - 14 - rendered.get_width()
+            self._screen.blit(rendered, (x, 42))
 
     # ------------------------------------------------------------------
     # Mode label
