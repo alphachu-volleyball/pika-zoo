@@ -47,6 +47,8 @@ class PikachuVolleyballEnv(ParallelEnv):
         ai_policies: dict[str, AIPolicy] | None = None,
         render_mode: str | None = None,
         random_mode: bool = False,
+        p1_skin: str = "yellow",
+        p2_skin: str = "yellow",
     ) -> None:
         super().__init__()
 
@@ -55,6 +57,8 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.ai_policies = ai_policies or {}
         self.render_mode = render_mode
         self.random_mode = random_mode
+        self._p1_skin = p1_skin
+        self._p2_skin = p2_skin
 
         self.possible_agents = ["player_1", "player_2"]
 
@@ -201,7 +205,9 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._renderer is None:
             from pika_zoo.rendering.renderer import PygameRenderer
 
-            self._renderer = PygameRenderer(render_mode=self.render_mode)
+            self._renderer = PygameRenderer(
+                render_mode=self.render_mode, p1_skin=self._p1_skin, p2_skin=self._p2_skin
+            )
 
         return self._renderer.render(
             self._physics.player1,

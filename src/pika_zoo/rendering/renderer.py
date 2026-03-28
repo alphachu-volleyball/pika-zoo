@@ -39,9 +39,17 @@ class PygameRenderer:
         overlays: Optional list of overlay objects to draw on top.
     """
 
-    def __init__(self, render_mode: str = "rgb_array", overlays: list[Overlay] | None = None) -> None:
+    def __init__(
+        self,
+        render_mode: str = "rgb_array",
+        overlays: list[Overlay] | None = None,
+        p1_skin: str = "yellow",
+        p2_skin: str = "yellow",
+    ) -> None:
         self._render_mode = render_mode
         self._overlays = overlays or []
+        self._p1_skin = p1_skin
+        self._p2_skin = p2_skin
         self._screen: pygame.Surface | None = None
         self._clock: pygame.time.Clock | None = None
         self._sprites: dict[str, Any] | None = None
@@ -64,7 +72,7 @@ class PygameRenderer:
             pygame.display.set_mode((1, 1))
             self._screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-        self._sprites = load_all_sprites()
+        self._sprites = load_all_sprites(p1_skin=self._p1_skin, p2_skin=self._p2_skin)
         self._initialized = True
 
     def render(

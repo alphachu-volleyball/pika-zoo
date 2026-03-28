@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import warnings
 
-from pika_zoo.ai.registry import get_ai
+from pika_zoo.ai.registry import get_ai, get_skin
 from pika_zoo.env import env
 from pika_zoo.scripts.video import FFmpegWriter
 
@@ -32,6 +32,8 @@ def play(
     render: bool = True,
     record: str | None = None,
     random_mode: bool = False,
+    p1_skin: str | None = None,
+    p2_skin: str | None = None,
 ) -> None:
     """Run a Pikachu Volleyball match.
 
@@ -44,6 +46,8 @@ def play(
         render: Show pygame window.
         record: Output MP4 path, or None to skip recording.
         random_mode: Randomize ball starting position/velocity each round.
+        p1_skin: Pikachu skin for P1 (default: auto from AI registry, "yellow" for human).
+        p2_skin: Pikachu skin for P2 (default: auto from AI registry, "yellow" for human).
     """
     p1_human = p1 == "human"
     p2_human = p2 == "human"
@@ -64,6 +68,10 @@ def play(
     if not p2_human:
         ai_policies["player_2"] = get_ai(p2)
 
+    # Resolve skins: explicit > registry > "yellow" (human)
+    resolved_p1_skin = p1_skin or ("yellow" if p1_human else get_skin(p1))
+    resolved_p2_skin = p2_skin or ("yellow" if p2_human else get_skin(p2))
+
     if render:
         render_mode = "human"
     elif record:
@@ -76,6 +84,8 @@ def play(
         ai_policies=ai_policies,
         winning_score=winning_score,
         random_mode=random_mode,
+        p1_skin=resolved_p1_skin,
+        p2_skin=resolved_p2_skin,
     )
     e.reset(seed=seed)
 
@@ -182,6 +192,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
     parser.add_argument("--random", action="store_true", help="Random ball start position/velocity each round")
+    parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
+    parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
     args = parser.parse_args(argv)
 
     play(
@@ -193,6 +205,8 @@ def main(argv: list[str] | None = None) -> None:
         render=not args.no_render,
         record=args.record,
         random_mode=args.random,
+        p1_skin=args.p1_skin,
+        p2_skin=args.p2_skin,
     )
 
 
