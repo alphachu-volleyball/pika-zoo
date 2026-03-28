@@ -35,20 +35,24 @@ def play(
     noisy: bool = False,
     p1_skin: str | None = None,
     p2_skin: str | None = None,
+    p1_label: str | None = None,
+    p2_label: str | None = None,
 ) -> None:
     """Run a Pikachu Volleyball match.
 
     Args:
-        p1: Player 1 — AI name or "human".
-        p2: Player 2 — AI name or "human".
+        p1: Player 1 — AI name, "human", or model path.
+        p2: Player 2 — AI name, "human", or model path.
         winning_score: Score to win.
         seed: Random seed.
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
         record: Output MP4 path, or None to skip recording.
         noisy: Add small noise to ball starting position/velocity each round.
-        p1_skin: Pikachu skin for P1 (default: auto from AI registry, "yellow" for human).
-        p2_skin: Pikachu skin for P2 (default: auto from AI registry, "yellow" for human).
+        p1_skin: Pikachu skin for P1 (default: auto).
+        p2_skin: Pikachu skin for P2 (default: auto).
+        p1_label: Display label for P1 (default: auto from spec).
+        p2_label: Display label for P2 (default: auto from spec).
     """
     p1_human = p1 == "human"
     p2_human = p2 == "human"
@@ -101,11 +105,12 @@ def play(
         if is_human:
             return "human"
         if Path(spec).exists():
-            return Path(spec).stem
+            p = Path(spec)
+            return p.parent.name if p.stem == "model" else p.stem
         return spec
 
-    p1_label = _make_label(p1, p1_human)
-    p2_label = _make_label(p2, p2_human)
+    p1_label = p1_label or _make_label(p1, p1_human)
+    p2_label = p2_label or _make_label(p2, p2_human)
 
     e = env(
         render_mode=render_mode,
@@ -228,6 +233,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--noisy", action="store_true", help="Add noise to ball start position/velocity")
     parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
     parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
+    parser.add_argument("--p1-label", type=str, default=None, help="P1 display label (default: auto)")
+    parser.add_argument("--p2-label", type=str, default=None, help="P2 display label (default: auto)")
     args = parser.parse_args(argv)
 
     play(
@@ -241,6 +248,8 @@ def main(argv: list[str] | None = None) -> None:
         noisy=args.noisy,
         p1_skin=args.p1_skin,
         p2_skin=args.p2_skin,
+        p1_label=args.p1_label,
+        p2_label=args.p2_label,
     )
 
 
