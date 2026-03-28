@@ -46,7 +46,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         serve: str = "winner",
         ai_policies: dict[str, AIPolicy] | None = None,
         render_mode: str | None = None,
-        random_mode: bool = False,
+        noisy: bool = False,
         p1_skin: str = "yellow",
         p2_skin: str = "yellow",
         p1_label: str = "",
@@ -58,7 +58,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.serve = serve
         self.ai_policies = ai_policies or {}
         self.render_mode = render_mode
-        self.random_mode = random_mode
+        self.noisy = noisy
         self._p1_skin = p1_skin
         self._p2_skin = p2_skin
         self._p1_label = p1_label
@@ -96,9 +96,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.agents = list(self.possible_agents)
 
         self._physics = PikaPhysics(self._np_random)
-        self._physics.ball.initialize_for_new_round(
-            self._is_player2_serve, random_mode=self.random_mode, rng=self._np_random
-        )
+        self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
         self._scores = [0, 0]
         self._round_ended = False
         self._game_ended = False
@@ -130,9 +128,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._round_ended and not self._game_ended:
             self._physics.player1.initialize_for_new_round(self._np_random)
             self._physics.player2.initialize_for_new_round(self._np_random)
-            self._physics.ball.initialize_for_new_round(
-                self._is_player2_serve, random_mode=self.random_mode, rng=self._np_random
-            )
+            self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
             self._round_ended = False
             for converter in self._action_converters.values():
                 converter.reset()
@@ -217,7 +213,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.ball,
             self._scores,
             metadata={
-                "mode": "random" if self.random_mode else "normal",
+                "mode": "noisy" if self.noisy else "normal",
                 "p1_label": self._p1_label,
                 "p2_label": self._p2_label,
             },
