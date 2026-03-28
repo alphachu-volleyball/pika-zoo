@@ -28,6 +28,33 @@ alphachu-volleyball/
 training-center → pika-zoo: Git tag pinning (`pika-zoo @ git+...@v0.1.0`)
 training-center → world-tournament: ONNX models (GitHub Releases)
 
+### Package Structure
+
+```
+src/pika_zoo/
+├── engine/              # Pure physics engine (no AI)
+│   ├── constants.py     # Game constants (432×304, net, ball radius, etc.)
+│   ├── types.py         # UserInput, PlayerState(IntEnum)
+│   ├── rand.py          # rand() wrapper matching original [0, 32767]
+│   └── physics.py       # PikaPhysics, Player, Ball + collision/movement
+├── ai/                  # Pluggable AI system
+│   ├── protocol.py      # AIPolicy (typing.Protocol)
+│   ├── builtin.py       # Original gorisanson AI (with intentional bugs)
+│   └── registry.py      # Name-based AI lookup
+├── env/                 # RL environment layer (planned)
+├── wrappers/            # PettingZoo wrappers (planned)
+├── rendering/           # Pygame renderer + overlays (planned)
+└── utils/               # Replay, random mode (planned)
+```
+
+### Key Design: AI Separation
+
+The original JS embeds AI inside the physics engine (`processPlayerMovementAndSetPlayerPosition` calls `letComputerDecideUserInput`). In pika-zoo, AI is fully separated:
+
+- `engine/physics.py`: pure function `(state, inputs) → next_state`
+- `ai/protocol.py`: `AIPolicy` Protocol — any object with `compute_action()` works
+- Environment layer calls `AIPolicy.compute_action()` before stepping physics
+
 ## Development Environment
 
 - **Python**: 3.10+
