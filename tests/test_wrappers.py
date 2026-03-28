@@ -237,9 +237,10 @@ class TestRecordEpisode:
         assert record is not None
         # Total rounds should match total score
         assert len(record.rounds) == sum(record.scores)
-        # Each round should have a valid scorer
+        # Each round should have a valid scorer and server
         for r in record.rounds:
             assert r.scorer in ("player_1", "player_2")
+            assert r.server in ("player_1", "player_2")
             assert r.start_frame <= r.end_frame
         # Round numbers should be sequential
         for i, r in enumerate(record.rounds):
@@ -294,6 +295,22 @@ class TestRecordEpisode:
             assert record.winner == "player_1"
         else:
             assert record.winner == "player_2"
+
+    def test_server_tracking(self):
+        """First round server should be player_1, then scorer serves next."""
+        e = env(winning_score=3)
+        wrapped = RecordEpisode(e)
+        wrapped.reset(seed=42)
+        for _ in range(5000):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_episode_record()
+        # First round: player_1 serves (default)
+        assert record.rounds[0].server == "player_1"
+        # Subsequent rounds: scorer of previous round serves
+        for i in range(1, len(record.rounds)):
+            assert record.rounds[i].server == record.rounds[i - 1].scorer
 
     def test_round_duration(self):
         e = env(winning_score=2)

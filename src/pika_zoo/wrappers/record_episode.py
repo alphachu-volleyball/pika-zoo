@@ -40,7 +40,8 @@ class RoundRecord:
     """Record of a single round (one point scored)."""
 
     round_number: int
-    scorer: str  # "player_1" or "player_2"
+    server: str  # "player_1" or "player_2" — who served this round
+    scorer: str  # "player_1" or "player_2" — who scored
     reward: dict[str, float]
     start_frame: int
     end_frame: int
@@ -83,6 +84,7 @@ class EpisodeRecord:
             "rounds": [
                 {
                     "round_number": r.round_number,
+                    "server": r.server,
                     "scorer": r.scorer,
                     "reward": r.reward,
                     "start_frame": r.start_frame,
@@ -111,6 +113,7 @@ class RecordEpisode(BaseParallelWrapper):
         self._round_start_frame: int = 1
         self._prev_scores: list[int] = [0, 0]
         self._current_round_frames: list[FrameSnapshot] = []
+        self._current_server: str = "player_1"
 
     def reset(self, seed=None, options=None):
         observations, infos = super().reset(seed=seed, options=options)
@@ -119,6 +122,8 @@ class RecordEpisode(BaseParallelWrapper):
         self._round_start_frame = 1
         self._prev_scores = [0, 0]
         self._current_round_frames = []
+        # First round server: check env's _is_player2_serve
+        self._current_server = "player_2" if self.env._is_player2_serve else "player_1"
         return observations, infos
 
     def step(self, actions):
@@ -173,6 +178,7 @@ class RecordEpisode(BaseParallelWrapper):
             self._current_episode.rounds.append(
                 RoundRecord(
                     round_number=round_number,
+                    server=self._current_server,
                     scorer=scorer,
                     reward=reward,
                     start_frame=self._round_start_frame,
@@ -183,6 +189,8 @@ class RecordEpisode(BaseParallelWrapper):
             self._current_round_frames = []
             self._round_start_frame = self._frame_count + 1
             self._prev_scores = current_scores
+            # Next round server: the scorer serves (env uses "winner" serve by default)
+            self._current_server = "player_2" if self.env._is_player2_serve else "player_1"
 
         # 5. Add episode stats to infos on game end
         if any(terminations.values()):
