@@ -12,53 +12,69 @@ from pathlib import Path
 import pygame
 
 ASSETS_DIR = Path(__file__).parent / "assets"
+PIKACHU_SPRITES_DIR = ASSETS_DIR / "pikachu_sprites"
+DEFAULT_PIKACHU_SKIN = "yellow"
 
 
-def _load(name: str, alpha: bool = True) -> pygame.Surface:
-    """Load a sprite image from the assets directory."""
-    surface = pygame.image.load(str(ASSETS_DIR / name))
+def _load(path: str | Path, alpha: bool = True) -> pygame.Surface:
+    """Load a sprite image."""
+    surface = pygame.image.load(str(path))
     return surface.convert_alpha() if alpha else surface.convert()
 
 
-def load_all_sprites() -> dict[str, pygame.Surface | tuple[pygame.Surface, ...]]:
+def load_pikachu_sprites(skin: str = DEFAULT_PIKACHU_SKIN) -> tuple[pygame.Surface, ...]:
+    """Load 28 pikachu sprite frames for a given skin.
+
+    Args:
+        skin: Skin folder name under pikachu_sprites/ (e.g. "yellow").
+    """
+    skin_dir = PIKACHU_SPRITES_DIR / skin
+    frames: list[pygame.Surface] = []
+    for state, frame_count in [(0, 5), (1, 5), (2, 5), (3, 2), (4, 1), (5, 5), (6, 5)]:
+        for frame in range(frame_count):
+            frames.append(_load(skin_dir / f"pikachu_{state}_{frame}.png"))
+    return tuple(frames)
+
+
+def load_all_sprites(
+    p1_skin: str = DEFAULT_PIKACHU_SKIN,
+    p2_skin: str = DEFAULT_PIKACHU_SKIN,
+) -> dict[str, pygame.Surface | tuple[pygame.Surface, ...]]:
     """Load all game sprites and return as a dict.
 
-    Returns:
-        Dict with keys: ball, ball_hyper, ball_punch, ball_trail,
-        pikachu (28 frames), number (10 digits), shadow, cloud, wave,
-        sky_blue, mountain, ground_red, ground_yellow, ground_line,
-        ground_line_leftmost, ground_line_rightmost, net_pillar, net_pillar_top
+    Args:
+        p1_skin: Pikachu skin for player 1.
+        p2_skin: Pikachu skin for player 2.
     """
     sprites: dict[str, pygame.Surface | tuple[pygame.Surface, ...]] = {}
 
     # Ball sprites (6: rotation 0-4 + hyper)
-    sprites["ball"] = tuple(_load(f"ball_{i}.png") for i in range(5)) + (_load("ball_hyper.png"),)
-    sprites["ball_punch"] = _load("ball_punch.png")
-    sprites["ball_trail"] = _load("ball_trail.png")
+    sprites["ball"] = tuple(_load(ASSETS_DIR / f"ball_{i}.png") for i in range(5)) + (
+        _load(ASSETS_DIR / "ball_hyper.png"),
+    )
+    sprites["ball_punch"] = _load(ASSETS_DIR / "ball_punch.png")
+    sprites["ball_trail"] = _load(ASSETS_DIR / "ball_trail.png")
 
     # Player sprites (28 total across 7 states)
-    pikachu_frames: list[pygame.Surface] = []
-    for state, frame_count in [(0, 5), (1, 5), (2, 5), (3, 2), (4, 1), (5, 5), (6, 5)]:
-        for frame in range(frame_count):
-            pikachu_frames.append(_load(f"pikachu_{state}_{frame}.png"))
-    sprites["pikachu"] = tuple(pikachu_frames)
+    sprites["pikachu_p1"] = load_pikachu_sprites(p1_skin)
+    sprites["pikachu_p2"] = load_pikachu_sprites(p2_skin)
 
     # Number sprites (0-9)
-    sprites["number"] = tuple(_load(f"number_{i}.png") for i in range(10))
+    sprites["number"] = tuple(_load(ASSETS_DIR / f"number_{i}.png") for i in range(10))
 
     # Environment
-    sprites["shadow"] = _load("shadow.png")
-    sprites["cloud"] = _load("cloud.png")
-    sprites["wave"] = _load("wave.png")
-    sprites["sky_blue"] = _load("sky_blue.png", alpha=False)
-    sprites["mountain"] = _load("mountain.png", alpha=False)
-    sprites["ground_red"] = _load("ground_red.png", alpha=False)
-    sprites["ground_yellow"] = _load("ground_yellow.png", alpha=False)
-    sprites["ground_line"] = _load("ground_line.png", alpha=False)
-    sprites["ground_line_leftmost"] = _load("ground_line_leftmost.png", alpha=False)
-    sprites["ground_line_rightmost"] = _load("ground_line_rightmost.png", alpha=False)
-    sprites["net_pillar"] = _load("net_pillar.png", alpha=False)
-    sprites["net_pillar_top"] = _load("net_pillar_top.png", alpha=False)
+    sprites["shadow"] = _load(ASSETS_DIR / "shadow.png")
+    sprites["cloud"] = _load(ASSETS_DIR / "cloud.png")
+    sprites["wave"] = _load(ASSETS_DIR / "wave.png")
+    sprites["sky_blue"] = _load(ASSETS_DIR / "sky_blue.png", alpha=False)
+    sprites["mountain"] = _load(ASSETS_DIR / "mountain.png", alpha=False)
+    sprites["ground_red"] = _load(ASSETS_DIR / "ground_red.png", alpha=False)
+    sprites["ground_yellow"] = _load(ASSETS_DIR / "ground_yellow.png", alpha=False)
+    sprites["ground_line"] = _load(ASSETS_DIR / "ground_line.png", alpha=False)
+    sprites["ground_line_leftmost"] = _load(ASSETS_DIR / "ground_line_leftmost.png", alpha=False)
+    sprites["ground_line_rightmost"] = _load(ASSETS_DIR / "ground_line_rightmost.png", alpha=False)
+    sprites["net_pillar"] = _load(ASSETS_DIR / "net_pillar.png", alpha=False)
+    sprites["net_pillar_top"] = _load(ASSETS_DIR / "net_pillar_top.png", alpha=False)
 
     return sprites
 
