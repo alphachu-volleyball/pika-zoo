@@ -205,9 +205,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._renderer is None:
             from pika_zoo.rendering.renderer import PygameRenderer
 
-            self._renderer = PygameRenderer(
-                render_mode=self.render_mode, p1_skin=self._p1_skin, p2_skin=self._p2_skin
-            )
+            self._renderer = PygameRenderer(render_mode=self.render_mode, p1_skin=self._p1_skin, p2_skin=self._p2_skin)
 
         return self._renderer.render(
             self._physics.player1,
