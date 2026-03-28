@@ -208,6 +208,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.player2,
             self._physics.ball,
             self._scores,
+            metadata={"mode": "random" if self.random_mode else "normal"},
         )
 
     def close(self) -> None:
