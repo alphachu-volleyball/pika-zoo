@@ -6,7 +6,21 @@ Source: https://github.com/gorisanson/pikachu-volleyball/blob/main/src/resources
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import IntEnum
+
+
+@dataclass(frozen=True)
+class NoiseConfig:
+    """Configuration for ball initialization noise.
+
+    Each value specifies the ± range for uniform random noise.
+    For example, x_range=5 means x += rng.integers(-5, 6).
+    """
+
+    x_range: int = 5
+    x_velocity_range: int = 3
+    y_velocity_range: int = 0
 
 
 class PlayerState(IntEnum):

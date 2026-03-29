@@ -17,6 +17,7 @@ from pettingzoo import ParallelEnv
 from pika_zoo.ai.protocol import AIPolicy
 from pika_zoo.engine.constants import GROUND_HALF_WIDTH
 from pika_zoo.engine.physics import PikaPhysics
+from pika_zoo.engine.types import NoiseConfig
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import build_observation, build_observation_space
 
@@ -46,7 +47,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         serve: str = "winner",
         ai_policies: dict[str, AIPolicy] | None = None,
         render_mode: str | None = None,
-        noisy: bool = False,
+        noise: NoiseConfig | None = None,
         p1_skin: str = "yellow",
         p2_skin: str = "yellow",
         p1_label: str = "",
@@ -58,7 +59,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.serve = serve
         self.ai_policies = ai_policies or {}
         self.render_mode = render_mode
-        self.noisy = noisy
+        self.noise = noise
         self._p1_skin = p1_skin
         self._p2_skin = p2_skin
         self._p1_label = p1_label
@@ -96,7 +97,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.agents = list(self.possible_agents)
 
         self._physics = PikaPhysics(self._np_random)
-        self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
+        self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
         self._scores = [0, 0]
         self._round_ended = False
         self._game_ended = False
@@ -128,7 +129,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._round_ended and not self._game_ended:
             self._physics.player1.initialize_for_new_round(self._np_random)
             self._physics.player2.initialize_for_new_round(self._np_random)
-            self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
+            self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
             self._round_ended = False
             for converter in self._action_converters.values():
                 converter.reset()
@@ -213,7 +214,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.ball,
             self._scores,
             metadata={
-                "mode": "noisy" if self.noisy else "normal",
+                "mode": "noisy" if self.noise is not None else "normal",
                 "p1_label": self._p1_label,
                 "p2_label": self._p2_label,
             },

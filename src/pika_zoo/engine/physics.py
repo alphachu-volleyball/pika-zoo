@@ -24,7 +24,7 @@ from pika_zoo.engine.constants import (
     PLAYER_TOUCHING_GROUND_Y_COORD,
 )
 from pika_zoo.engine.rand import rand
-from pika_zoo.engine.types import UserInput
+from pika_zoo.engine.types import NoiseConfig, UserInput
 
 
 def _trunc_div(a: int, b: int) -> int:
@@ -141,23 +141,30 @@ class Ball:
         self.initialize_for_new_round(is_player2_serve)
 
     def initialize_for_new_round(
-        self, is_player2_serve: bool, noisy: bool = False, rng: Generator | None = None
+        self,
+        is_player2_serve: bool,
+        noise: NoiseConfig | None = None,
+        rng: Generator | None = None,
     ) -> None:
         """Reset ball state for a new round.
 
         Args:
             is_player2_serve: Which side serves.
-            noisy: If True, add small noise to starting position and velocity.
-            rng: Random generator (required if noisy is True).
+            noise: Noise configuration. None disables noise.
+            rng: Random generator (required if noise is not None).
         """
         self.x = 56 if not is_player2_serve else GROUND_WIDTH - 56
         self.y = 0
         self.x_velocity = 0
         self.y_velocity = 1
 
-        if noisy and rng is not None:
-            self.x += int(rng.integers(-5, 6))  # ±5 pixels
-            self.x_velocity = int(rng.integers(-3, 4))  # small horizontal nudge
+        if noise is not None and rng is not None:
+            if noise.x_range > 0:
+                self.x += int(rng.integers(-noise.x_range, noise.x_range + 1))
+            if noise.x_velocity_range > 0:
+                self.x_velocity = int(rng.integers(-noise.x_velocity_range, noise.x_velocity_range + 1))
+            if noise.y_velocity_range > 0:
+                self.y_velocity += int(rng.integers(-noise.y_velocity_range, noise.y_velocity_range + 1))
 
         self.punch_effect_radius: int = 0
         self.is_power_hit: bool = False
