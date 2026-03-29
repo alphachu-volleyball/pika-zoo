@@ -34,7 +34,7 @@ NUM_SIMPLIFIED_ACTIONS: int = 13
 
 # Player 1 (left side): toward_net = RIGHT, away = LEFT
 # fmt: off
-_P1_MAP: list[int] = [
+P1_MAP: list[int] = [
     0,   # NOOP
     1,   # FIRE
     2,   # UP
@@ -51,7 +51,7 @@ _P1_MAP: list[int] = [
 ]
 
 # Player 2 (right side): toward_net = LEFT, away = RIGHT
-_P2_MAP: list[int] = [
+P2_MAP: list[int] = [
     0,   # NOOP
     1,   # FIRE
     2,   # UP
@@ -75,8 +75,8 @@ class SimplifyAction(BaseParallelWrapper):
     def __init__(self, env):
         super().__init__(env)
         self._maps = {
-            "player_1": np.array(_P1_MAP, dtype=np.int32),
-            "player_2": np.array(_P2_MAP, dtype=np.int32),
+            "player_1": np.array(P1_MAP, dtype=np.int32),
+            "player_2": np.array(P2_MAP, dtype=np.int32),
         }
 
     def action_space(self, agent: str) -> spaces.Discrete:

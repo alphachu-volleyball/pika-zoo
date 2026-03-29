@@ -76,7 +76,7 @@ def play(
         if Path(spec).exists():
             from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
 
-            policy = SB3ModelPolicy(spec)
+            policy = SB3ModelPolicy(spec, agent=agent)
             ai_policies[agent] = policy
             sb3_policies[agent] = policy
         else:
