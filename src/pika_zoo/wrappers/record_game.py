@@ -17,6 +17,8 @@ from typing import Any
 
 from pettingzoo.utils import BaseParallelWrapper
 
+from pika_zoo.env.actions import user_input_to_action
+
 _EVENT_KEYS: list[str] = [
     "p1_touch_ball",
     "p1_power_hit",
@@ -35,15 +37,11 @@ class FrameRecord:
 
     frame: int
     round_number: int
-    player1_x_direction: int
-    player1_y_direction: int
-    player1_power_hit: int
+    player1_action: int
     player1_x: int
     player1_y: int
     player1_state: int
-    player2_x_direction: int
-    player2_y_direction: int
-    player2_power_hit: int
+    player2_action: int
     player2_x: int
     player2_y: int
     player2_state: int
@@ -329,19 +327,20 @@ class RecordGame(BaseParallelWrapper):
         p1_ui = ui.get("player_1", {})
         p2_ui = ui.get("player_2", {})
         if physics is not None and self._record_frames:
+            def _ui_tuple(ui: dict) -> tuple[int, int, int]:
+                return int(ui.get("x_direction", 0)), int(ui.get("y_direction", 0)), int(ui.get("power_hit", 0))
+
+            p1_ui_vals = _ui_tuple(p1_ui)
+            p2_ui_vals = _ui_tuple(p2_ui)
             self._current_round_frames.append(
                 FrameRecord(
                     frame=self._frame_count,
                     round_number=len(self._current_game.rounds) + 1,
-                    player1_x_direction=int(p1_ui.get("x_direction", 0)),
-                    player1_y_direction=int(p1_ui.get("y_direction", 0)),
-                    player1_power_hit=int(p1_ui.get("power_hit", 0)),
+                    player1_action=user_input_to_action(*p1_ui_vals),
                     player1_x=int(physics.player1.x),
                     player1_y=int(physics.player1.y),
                     player1_state=int(physics.player1.state),
-                    player2_x_direction=int(p2_ui.get("x_direction", 0)),
-                    player2_y_direction=int(p2_ui.get("y_direction", 0)),
-                    player2_power_hit=int(p2_ui.get("power_hit", 0)),
+                    player2_action=user_input_to_action(*p2_ui_vals),
                     player2_x=int(physics.player2.x),
                     player2_y=int(physics.player2.y),
                     player2_state=int(physics.player2.state),
