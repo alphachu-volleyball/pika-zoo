@@ -3,15 +3,27 @@
 [![Release](https://img.shields.io/github/v/release/alphachu-volleyball/pika-zoo?label=release&logo=github)](https://github.com/alphachu-volleyball/pika-zoo/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
-Python port of [Pikachu Volleyball](https://github.com/gorisanson/pikachu-volleyball) (1997) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
+Python port of [Pikachu Volleyball Game](https://gorisanson.github.io/pikachu-volleyball/en/) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
+
+> **Original game**: Pikachu Volleyball (対戦ぴかちゅ～　ﾋﾞｰﾁﾊﾞﾚｰ編)
+> — 1997 (C) SACHI SOFT / SAWAYAKAN Programmers, Satoshi Takenouchi
+>
+> **Reverse-engineered JS**: [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball)
+> — The source code this project is based on
 
 ## Overview
 
-A Python port of the reverse-engineered JS implementation of the original Pikachu Volleyball, wrapped with standard RL interfaces.
+Python port of the reverse-engineered JS source code, wrapped with standard RL interfaces. Provides utilities for RL training, evaluation, and visualization:
 
 - **Physics Engine**: Accurately reproduces the original ball trajectory, character movement, net collision, and scoring logic
 - **PettingZoo**: Two-player multi-agent environment (`ParallelEnv`)
 - **Gymnasium**: Single-agent wrapper (opponent fixed with a built-in policy)
+- **Wrappers**: Action/observation simplification, normalization, reward shaping — all opt-in and composable
+- **Rendering**: Pygame-based visualization with player skins, score overlay, and headless MP4 recording
+- **Episode Recording**: Per-round statistics, frame-by-frame state snapshots, and JSON export for replay analysis
+- **CLI**: `uv run play` for human play, AI matchups, and batch recording
+
+https://github.com/user-attachments/assets/9a2bf5d3-a855-48b9-b211-71503e1e3883
 
 ### RL Pipeline
 
@@ -51,13 +63,29 @@ uv run ruff check .
 
 ## Environment
 
-### Observation Space
+- **Observation**: 35-element agent-centric vector `[self(13), opponent(13), ball(9)]` — [details](src/pika_zoo/env/README.md)
+- **Action**: 18 discrete actions (3 x-dir x 3 y-dir x 2 power_hit) — [details](src/pika_zoo/env/README.md#action-space)
+- **Wrappers**: opt-in, composable — [details](src/pika_zoo/wrappers/README.md)
 
-Low-dimensional vector observations (positions, velocities, etc.)
+```python
+from pika_zoo.env import env
+from pika_zoo.wrappers import SimplifyAction, SimplifyObservation, NormalizeObservation, ConvertSingleAgent
 
-### Action Space
+e = env(winning_score=15)
+e = SimplifyAction(e)              # 18 → 13 relative actions
+e = SimplifyObservation(e)         # mirror player_2 x-axis (optional)
+e = NormalizeObservation(e)        # scale observations to [0, 1]
+e = ConvertSingleAgent(e)          # PettingZoo → Gymnasium for SB3
+```
 
-Discrete action space (directional keys + jump combinations)
+## Physics Engine: Left-Right Asymmetry
+
+The original Pikachu Volleyball uses integer-based physics with several left-right asymmetries (net collision boundary, power hit direction, wall bounce ranges, etc.). pika-zoo **intentionally preserves** these asymmetries so that RL agents train under the same conditions as the original game.
+
+> [!IMPORTANT]
+> Due to these asymmetries, **a single model cannot play both sides equally** unless `SimplifyObservation` is applied to mirror player_2's x-axis. By default, this project trains separate models for player 1 (left) and player 2 (right).
+
+See [engine/README.md](src/pika_zoo/engine/README.md#left-right-asymmetry) for the full technical breakdown.
 
 ## Development
 

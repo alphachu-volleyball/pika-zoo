@@ -17,6 +17,7 @@ from pettingzoo import ParallelEnv
 from pika_zoo.ai.protocol import AIPolicy
 from pika_zoo.engine.constants import GROUND_HALF_WIDTH
 from pika_zoo.engine.physics import PikaPhysics
+from pika_zoo.engine.types import NoiseConfig
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import build_observation, build_observation_space
 
@@ -46,7 +47,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         serve: str = "winner",
         ai_policies: dict[str, AIPolicy] | None = None,
         render_mode: str | None = None,
-        noisy: bool = False,
+        noise: NoiseConfig | None = None,
         p1_skin: str = "yellow",
         p2_skin: str = "yellow",
         p1_label: str = "",
@@ -58,7 +59,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.serve = serve
         self.ai_policies = ai_policies or {}
         self.render_mode = render_mode
-        self.noisy = noisy
+        self.noise = noise
         self._p1_skin = p1_skin
         self._p2_skin = p2_skin
         self._p1_label = p1_label
@@ -74,6 +75,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self._round_ended: bool = False
         self._game_ended: bool = False
         self._np_random: np.random.Generator | None = None
+        self._last_user_inputs: list | None = None
 
     @functools.cache
     def observation_space(self, agent: str) -> spaces.Box:
@@ -96,7 +98,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self.agents = list(self.possible_agents)
 
         self._physics = PikaPhysics(self._np_random)
-        self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
+        self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
         self._scores = [0, 0]
         self._round_ended = False
         self._game_ended = False
@@ -128,7 +130,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._round_ended and not self._game_ended:
             self._physics.player1.initialize_for_new_round(self._np_random)
             self._physics.player2.initialize_for_new_round(self._np_random)
-            self._physics.ball.initialize_for_new_round(self._is_player2_serve, noisy=self.noisy, rng=self._np_random)
+            self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
             self._round_ended = False
             for converter in self._action_converters.values():
                 converter.reset()
@@ -140,7 +142,6 @@ class PikachuVolleyballEnv(ParallelEnv):
         user_inputs = []
         for agent in self.possible_agents:
             if agent in self.ai_policies:
-                # AI overrides the action
                 ai_input = self.ai_policies[agent].compute_action(
                     players[agent], self._physics.ball, opponents[agent], self._np_random
                 )
@@ -148,6 +149,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             else:
                 action = actions.get(agent, 0)
                 user_inputs.append(self._action_converters[agent].convert(action))
+        self._last_user_inputs = user_inputs
 
         # Clear sound flags
         for sound_dict in [
@@ -213,7 +215,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.ball,
             self._scores,
             metadata={
-                "mode": "noisy" if self.noisy else "normal",
+                "noise": self.noise,
                 "p1_label": self._p1_label,
                 "p2_label": self._p2_label,
             },
@@ -241,9 +243,36 @@ class PikachuVolleyballEnv(ParallelEnv):
         }
 
     def _get_infos(self) -> dict[str, dict]:
+        inputs = self._last_user_inputs if self._last_user_inputs else None
+        user_inputs = {}
+        if inputs:
+            for i, agent in enumerate(self.possible_agents):
+                u = inputs[i]
+                user_inputs[agent] = {
+                    "x_direction": u.x_direction,
+                    "y_direction": u.y_direction,
+                    "power_hit": u.power_hit,
+                }
+        base = {"scores": list(self._scores), "round_ended": self._round_ended, "user_inputs": user_inputs}
+        if self._physics is not None:
+            p1 = self._physics.player1.events
+            p2 = self._physics.player2.events
+            ball = self._physics.ball.events
+            events = {
+                "p1_touch_ball": p1["touch_ball"],
+                "p1_power_hit": p1["power_hit"],
+                "p1_diving": p1["diving"],
+                "p2_touch_ball": p2["touch_ball"],
+                "p2_power_hit": p2["power_hit"],
+                "p2_diving": p2["diving"],
+                "ball_wall_bounce": ball["wall_bounce"],
+                "ball_net_collision": ball["net_collision"],
+            }
+        else:
+            events = {}
         return {
-            "player_1": {"scores": list(self._scores), "round_ended": self._round_ended},
-            "player_2": {"scores": list(self._scores), "round_ended": self._round_ended},
+            "player_1": {**base, "events": events},
+            "player_2": {**base, "events": events},
         }
 
     def _get_serve(self) -> bool:

@@ -11,9 +11,10 @@ from pika_zoo.env.observations import OBSERVATION_SIZE
 from pika_zoo.wrappers import (
     ConvertSingleAgent,
     NormalizeObservation,
-    RecordEpisode,
+    RecordGame,
     RewardShaping,
     SimplifyAction,
+    SimplifyObservation,
 )
 from pika_zoo.wrappers.simplify_action import NUM_SIMPLIFIED_ACTIONS
 
@@ -125,6 +126,86 @@ class TestSimplifyAction:
         assert game_ended
 
 
+class TestSimplifyObservation:
+    def test_player1_unchanged(self):
+        """Player 1 observations should pass through unmodified."""
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped_obs, _ = wrapped.reset(seed=42)
+
+        np.testing.assert_array_equal(wrapped_obs["player_1"], raw_obs["player_1"])
+
+    def test_player2_x_mirrored(self):
+        """Player 2 x-positions should be mirrored (432 - x)."""
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped_obs, _ = wrapped.reset(seed=42)
+
+        assert wrapped_obs["player_2"][0] == pytest.approx(432.0 - raw_obs["player_2"][0])
+        assert wrapped_obs["player_2"][13] == pytest.approx(432.0 - raw_obs["player_2"][13])
+        assert wrapped_obs["player_2"][26] == pytest.approx(432.0 - raw_obs["player_2"][26])
+
+    def test_player2_direction_negated(self):
+        """Player 2 x-direction/velocity should be negated."""
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped_obs, _ = wrapped.reset(seed=42)
+
+        assert wrapped_obs["player_2"][3] == pytest.approx(-raw_obs["player_2"][3])
+        assert wrapped_obs["player_2"][32] == pytest.approx(-raw_obs["player_2"][32])
+
+    def test_step_mirrors_player2(self):
+        """Mirroring should also apply to step() observations."""
+        raw_env = env()
+        raw_env.reset(seed=42)
+        raw_obs, _, _, _, _ = raw_env.step({"player_1": 0, "player_2": 0})
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped.reset(seed=42)
+        wrapped_obs, _, _, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+
+        assert wrapped_obs["player_2"][0] == pytest.approx(432.0 - raw_obs["player_2"][0])
+        assert wrapped_obs["player_2"][26] == pytest.approx(432.0 - raw_obs["player_2"][26])
+
+    def test_obs_shape_preserved(self):
+        e = env()
+        wrapped = SimplifyObservation(e)
+        obs, _ = wrapped.reset(seed=42)
+        for agent_obs in obs.values():
+            assert agent_obs.shape == (OBSERVATION_SIZE,)
+            assert agent_obs.dtype == np.float32
+
+    def test_symmetric_initial_positions(self):
+        """After mirroring, both players should see similar self.x at start."""
+        e = env()
+        wrapped = SimplifyObservation(e)
+        obs, _ = wrapped.reset(seed=42)
+        assert obs["player_1"][0] == pytest.approx(obs["player_2"][0])
+
+    def test_full_game(self):
+        e = env(winning_score=2)
+        wrapped = SimplifyObservation(e)
+        wrapped.reset(seed=42)
+        game_ended = False
+        for _ in range(3000):
+            actions = {"player_1": 0, "player_2": 0}
+            obs, rewards, terms, truncs, infos = wrapped.step(actions)
+            if any(terms.values()):
+                game_ended = True
+                break
+        assert game_ended
+
+
 class TestNormalizeObservation:
     def test_obs_range(self):
         e = env()
@@ -184,23 +265,23 @@ class TestRewardShaping:
             assert rewards["player_2"] == 0.0
 
 
-class TestRecordEpisode:
+class TestRecordGame:
     def test_records_frames(self):
         e = env(winning_score=1)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(300):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         assert record is not None
-        assert record.total_frames > 0
-        assert len(record.frames) == record.total_frames
+        assert record.num_frames > 0
+        assert len(record.frames) == record.num_frames
 
     def test_episode_stats_in_info(self):
         e = env(winning_score=1)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(300):
             obs, rewards, terms, _, infos = wrapped.step({"player_1": 0, "player_2": 0})
@@ -213,13 +294,13 @@ class TestRecordEpisode:
 
     def test_to_dict_serializable(self):
         e = env(winning_score=1)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(300):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         d = record.to_dict()
         # Should be JSON-serializable
         json_str = json.dumps(d)
@@ -227,13 +308,13 @@ class TestRecordEpisode:
 
     def test_round_records(self):
         e = env(winning_score=3)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(5000):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         assert record is not None
         # Total rounds should match total score
         assert len(record.rounds) == sum(record.scores)
@@ -248,18 +329,18 @@ class TestRecordEpisode:
 
     def test_frames_grouped_by_round(self):
         e = env(winning_score=3)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(5000):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         # Each round should have non-empty frames
         for r in record.rounds:
             assert len(r.frames) > 0
         # Total frames across rounds should equal total_frames
-        assert sum(len(r.frames) for r in record.rounds) == record.total_frames
+        assert sum(len(r.frames) for r in record.rounds) == record.num_frames
         # Frame numbers within each round should be contiguous and ascending
         for r in record.rounds:
             frame_nums = [f.frame for f in r.frames]
@@ -267,13 +348,13 @@ class TestRecordEpisode:
 
     def test_round_reward(self):
         e = env(winning_score=2)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(3000):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         for r in record.rounds:
             # Reward should be zero-sum
             assert r.reward["player_1"] + r.reward["player_2"] == pytest.approx(0.0)
@@ -282,13 +363,13 @@ class TestRecordEpisode:
 
     def test_winner(self):
         e = env(winning_score=2)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(3000):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         assert record.winner is not None
         # Winner should be the player with higher score
         if record.scores[0] > record.scores[1]:
@@ -299,40 +380,91 @@ class TestRecordEpisode:
     def test_server_tracking(self):
         """First round server should be player_1, then scorer serves next."""
         e = env(winning_score=3)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(5000):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         # First round: player_1 serves (default)
         assert record.rounds[0].server == "player_1"
         # Subsequent rounds: scorer of previous round serves
         for i in range(1, len(record.rounds)):
             assert record.rounds[i].server == record.rounds[i - 1].scorer
 
-    def test_round_duration(self):
+    def test_round_num_frames(self):
         e = env(winning_score=2)
-        wrapped = RecordEpisode(e)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(3000):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
+        record = wrapped.get_game_record()
         for r in record.rounds:
-            assert r.duration == r.end_frame - r.start_frame + 1
-            assert r.duration == len(r.frames)
+            assert r.num_frames == r.end_frame - r.start_frame + 1
+            assert r.num_frames == len(r.frames)
+            # backward compat
+            assert r.duration == r.num_frames
 
-    def test_no_frames_when_disabled(self):
+    def test_event_counts(self):
+        """event_counts should aggregate frame-level events."""
+        e = env(winning_score=3)
+        wrapped = RecordGame(e)
+        wrapped.reset(seed=42)
+        for _ in range(5000):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_game_record()
+        # Game-level event_counts
+        ec = record.event_counts
+        assert isinstance(ec, dict)
+        assert "p1_touch_ball" in ec
+        assert ec["p1_touch_ball"] > 0 or ec["p2_touch_ball"] > 0
+        # Round-level event_counts should sum to game-level
+        for key in ec:
+            assert ec[key] == sum(r.event_counts[key] for r in record.rounds)
+
+    def test_scores_computed(self):
+        """scores should be computed from rounds, not stored."""
+        e = env(winning_score=2)
+        wrapped = RecordGame(e)
+        wrapped.reset(seed=42)
+        for _ in range(3000):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_game_record()
+        scores = record.scores
+        p1_scored = sum(1 for r in record.rounds if r.scorer == "player_1")
+        p2_scored = sum(1 for r in record.rounds if r.scorer == "player_2")
+        assert scores == [p1_scored, p2_scored]
+
+    def test_frame_record_has_events(self):
+        """FrameRecord should include event flags."""
         e = env(winning_score=1)
-        wrapped = RecordEpisode(e, record_frames=False)
+        wrapped = RecordGame(e)
         wrapped.reset(seed=42)
         for _ in range(300):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
             if any(terms.values()):
                 break
-        record = wrapped.get_episode_record()
-        assert record.total_frames > 0
+        record = wrapped.get_game_record()
+        f = record.frames[0]
+        assert hasattr(f, "p1_touch_ball")
+        assert hasattr(f, "ball_wall_bounce")
+        assert hasattr(f, "round_number")
+
+    def test_no_frames_when_disabled(self):
+        e = env(winning_score=1)
+        wrapped = RecordGame(e, record_frames=False)
+        wrapped.reset(seed=42)
+        for _ in range(300):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_game_record()
+        assert record.num_frames > 0
         assert len(record.frames) == 0

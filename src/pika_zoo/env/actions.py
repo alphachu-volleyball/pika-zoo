@@ -44,6 +44,19 @@ ACTION_TABLE: NDArray[np.int32] = np.array([
 
 NUM_ACTIONS: int = len(ACTION_TABLE)
 
+# Reverse mapping: (x_direction, y_direction, power_hit) → action index
+_INPUT_TO_ACTION: dict[tuple[int, int, int], int] = {}
+for _i, _keys in enumerate(ACTION_TABLE):
+    _xd = -int(_keys[0]) + int(_keys[1])
+    _yd = -int(_keys[2]) + int(_keys[3])
+    _ph = int(_keys[4])
+    _INPUT_TO_ACTION[(_xd, _yd, _ph)] = _i
+
+
+def user_input_to_action(x_direction: int, y_direction: int, power_hit: int) -> int:
+    """Convert UserInput fields to action index (0-17). Returns 0 (NOOP) if no match."""
+    return _INPUT_TO_ACTION.get((x_direction, y_direction, power_hit), 0)
+
 
 class ActionConverter:
     """Converts discrete action index to UserInput with power_hit debouncing.

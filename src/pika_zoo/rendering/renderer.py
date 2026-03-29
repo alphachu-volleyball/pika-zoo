@@ -104,14 +104,15 @@ class PygameRenderer:
         for overlay in self._overlays:
             overlay.draw(self._screen, metadata or {})
 
+        frame = np.transpose(pygame.surfarray.pixels3d(self._screen), axes=(1, 0, 2)).copy()
+
         if self._render_mode == "human":
             pygame.event.pump()
             pygame.display.flip()
             assert self._clock is not None
             self._clock.tick(FPS)
-            return None
-        else:
-            return np.transpose(pygame.surfarray.pixels3d(self._screen), axes=(1, 0, 2)).copy()
+
+        return frame
 
     def capture_frame(self) -> np.ndarray | None:
         """Capture the current screen as an RGB array, regardless of render mode.
@@ -274,15 +275,18 @@ class PygameRenderer:
     # ------------------------------------------------------------------
 
     def _draw_mode_label(self, metadata: dict[str, Any]) -> None:
-        """Draw mode label (normal/noisy) at top center."""
-        mode = metadata.get("mode")
-        if not mode:
-            return
+        """Draw mode label at top center — 'normal' or noise config details."""
+        noise = metadata.get("noise")
         assert self._screen is not None
         if self._mode_font is None:
             pygame.font.init()
             self._mode_font = pygame.font.SysFont("monospace", 14, bold=True)
-        color = (0, 0, 255) if mode == "noisy" else (0, 0, 0)
-        rendered = self._mode_font.render(mode, True, color)
+        if noise is not None:
+            label = f"noise(x={noise.x_range}, xv={noise.x_velocity_range}, yv={noise.y_velocity_range})"
+            color = (0, 0, 255)
+        else:
+            label = "normal"
+            color = (0, 0, 0)
+        rendered = self._mode_font.render(label, True, color)
         x = SCREEN_WIDTH // 2 - rendered.get_width() // 2
         self._screen.blit(rendered, (x, 10))

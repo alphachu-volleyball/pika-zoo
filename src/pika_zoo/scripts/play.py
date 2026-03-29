@@ -20,6 +20,7 @@ import warnings
 from pathlib import Path
 
 from pika_zoo.ai.registry import get_ai, get_skin
+from pika_zoo.engine.types import NoiseConfig
 from pika_zoo.env import env
 from pika_zoo.scripts.video import FFmpegWriter
 
@@ -32,7 +33,8 @@ def play(
     fps: int = 25,
     render: bool = True,
     record: str | None = None,
-    noisy: bool = False,
+    stats: str | None = None,
+    noise: NoiseConfig | None = None,
     p1_skin: str | None = None,
     p2_skin: str | None = None,
     p1_label: str | None = None,
@@ -48,7 +50,8 @@ def play(
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
         record: Output MP4 path, or None to skip recording.
-        noisy: Add small noise to ball starting position/velocity each round.
+        stats: Output CSV path for per-frame event stats, or None to skip.
+        noise: Noise configuration for ball initialization. None disables noise.
         p1_skin: Pikachu skin for P1 (default: auto).
         p2_skin: Pikachu skin for P2 (default: auto).
         p1_label: Display label for P1 (default: auto from spec).
@@ -116,13 +119,17 @@ def play(
         render_mode=render_mode,
         ai_policies=ai_policies,
         winning_score=winning_score,
-        noisy=noisy,
+        noise=noise,
         p1_skin=resolved_p1_skin,
         p2_skin=resolved_p2_skin,
         p1_label=p1_label,
         p2_label=p2_label,
     )
-    e.reset(seed=seed)
+    if stats:
+        from pika_zoo.wrappers import RecordGame
+
+        e = RecordGame(e)
+    cached_obs, _ = e.reset(seed=seed)
 
     # Print match info
     print(f"Pikachu Volleyball — {p1_label} vs {p2_label} (first to {winning_score})")
@@ -137,14 +144,8 @@ def play(
 
     # Set up recording
     writer = None
-    if record:
-        if render and e._renderer is not None:
-            frame = e._renderer.capture_frame()
-        elif render_mode == "rgb_array":
-            frame = e.render()
-        else:
-            frame = None
-
+    if record and render_mode is not None:
+        frame = e.render()
         if frame is not None:
             h, w = frame.shape[:2]
             writer = FFmpegWriter(record, w, h, fps)
@@ -184,29 +185,21 @@ def play(
             if p2_human:
                 actions["player_2"] = get_action_from_keys(keys, "player_2")
 
-        # Feed observations to SB3 models before step
-        if sb3_policies:
-            current_obs = e._get_observations()
+        # Feed cached observations to SB3 models before step
+        if sb3_policies and cached_obs is not None:
             for agent, policy in sb3_policies.items():
-                policy.set_observation(current_obs[agent])
+                policy.set_observation(cached_obs[agent])
 
         obs, rewards, terms, truncs, infos = e.step(actions)
+        cached_obs = obs
 
+        # Render + capture for recording
         if render_mode is not None:
-            e.render()
+            frame = e.render()
+            if writer is not None and frame is not None:
+                writer.write_frame(frame)
 
         frame_count += 1
-
-        # Capture for recording
-        if writer is not None:
-            if render and e._renderer is not None:
-                captured = e._renderer.capture_frame()
-            elif render_mode == "rgb_array":
-                captured = e.render()
-            else:
-                captured = None
-            if captured is not None:
-                writer.write_frame(captured)
 
         if any(terms.values()):
             scores = infos["player_1"]["scores"]
@@ -218,7 +211,23 @@ def play(
         writer.close()
         print(f"Saved to {record}")
 
+    if stats:
+        record = e.get_game_record()
+        if record is not None:
+            record.to_frames_df().to_csv(stats, index=False)
+            print(f"Stats saved to {stats} ({record.num_frames} frames)")
+
     e.close()
+
+
+def _build_noise(args: argparse.Namespace) -> NoiseConfig | None:
+    if args.noise_x is None and args.noise_x_vel is None and args.noise_y_vel is None:
+        return None
+    return NoiseConfig(
+        x_range=args.noise_x or 0,
+        x_velocity_range=args.noise_x_vel or 0,
+        y_velocity_range=args.noise_y_vel or 0,
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -230,7 +239,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
-    parser.add_argument("--noisy", action="store_true", help="Add noise to ball start position/velocity")
+    parser.add_argument("--stats", type=str, default=None, metavar="FILE", help="Save per-frame event stats to CSV")
+    parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N pixels")
+    parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x velocity noise ±N")
+    parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y velocity noise ±N")
     parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
     parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
     parser.add_argument("--p1-label", type=str, default=None, help="P1 display label (default: auto)")
@@ -245,7 +257,8 @@ def main(argv: list[str] | None = None) -> None:
         fps=args.fps,
         render=not args.no_render,
         record=args.record,
-        noisy=args.noisy,
+        stats=args.stats,
+        noise=_build_noise(args),
         p1_skin=args.p1_skin,
         p2_skin=args.p2_skin,
         p1_label=args.p1_label,

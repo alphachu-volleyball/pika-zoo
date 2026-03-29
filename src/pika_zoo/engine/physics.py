@@ -16,7 +16,6 @@ from pika_zoo.engine.constants import (
     BALL_TOUCHING_GROUND_Y_COORD,
     GROUND_HALF_WIDTH,
     GROUND_WIDTH,
-    INFINITE_LOOP_LIMIT,
     NET_PILLAR_HALF_WIDTH,
     NET_PILLAR_TOP_BOTTOM_Y_COORD,
     NET_PILLAR_TOP_TOP_Y_COORD,
@@ -24,7 +23,7 @@ from pika_zoo.engine.constants import (
     PLAYER_TOUCHING_GROUND_Y_COORD,
 )
 from pika_zoo.engine.rand import rand
-from pika_zoo.engine.types import UserInput
+from pika_zoo.engine.types import NoiseConfig, UserInput
 
 
 def _trunc_div(a: int, b: int) -> int:
@@ -60,6 +59,7 @@ class Player:
         "game_ended",
         "computer_where_to_stand_by",
         "sound",
+        "events",
     )
 
     def __init__(self, is_player2: bool, rng: Generator) -> None:
@@ -75,6 +75,11 @@ class Player:
             "pipikachu": False,
             "pika": False,
             "chu": False,
+        }
+        self.events: dict[str, bool] = {
+            "touch_ball": False,
+            "power_hit": False,
+            "diving": False,
         }
 
         self.initialize_for_new_round(rng)
@@ -120,6 +125,7 @@ class Ball:
         "previous_y",
         "previous_previous_y",
         "sound",
+        "events",
     )
 
     def __init__(self, is_player2_serve: bool) -> None:
@@ -137,27 +143,38 @@ class Ball:
             "power_hit": False,
             "ball_touches_ground": False,
         }
+        self.events: dict[str, bool] = {
+            "wall_bounce": False,
+            "net_collision": False,
+        }
 
         self.initialize_for_new_round(is_player2_serve)
 
     def initialize_for_new_round(
-        self, is_player2_serve: bool, noisy: bool = False, rng: Generator | None = None
+        self,
+        is_player2_serve: bool,
+        noise: NoiseConfig | None = None,
+        rng: Generator | None = None,
     ) -> None:
         """Reset ball state for a new round.
 
         Args:
             is_player2_serve: Which side serves.
-            noisy: If True, add small noise to starting position and velocity.
-            rng: Random generator (required if noisy is True).
+            noise: Noise configuration. None disables noise.
+            rng: Random generator (required if noise is not None).
         """
         self.x = 56 if not is_player2_serve else GROUND_WIDTH - 56
         self.y = 0
         self.x_velocity = 0
         self.y_velocity = 1
 
-        if noisy and rng is not None:
-            self.x += int(rng.integers(-5, 6))  # ±5 pixels
-            self.x_velocity = int(rng.integers(-3, 4))  # small horizontal nudge
+        if noise is not None and rng is not None:
+            if noise.x_range > 0:
+                self.x += int(rng.integers(-noise.x_range, noise.x_range + 1))
+            if noise.x_velocity_range > 0:
+                self.x_velocity = int(rng.integers(-noise.x_velocity_range, noise.x_velocity_range + 1))
+            if noise.y_velocity_range > 0:
+                self.y_velocity += int(rng.integers(-noise.y_velocity_range, noise.y_velocity_range + 1))
 
         self.punch_effect_radius: int = 0
         self.is_power_hit: bool = False
@@ -205,6 +222,13 @@ def _physics_engine(
     NOTE: The ``if (player.isComputer)`` branch is removed.
     AI input is decided externally before calling this function.
     """
+    # Clear per-frame events
+    for key in ball.events:
+        ball.events[key] = False
+    for p in (player1, player2):
+        for key in p.events:
+            p.events[key] = False
+
     is_ball_touching_ground = _process_collision_between_ball_and_world(ball)
 
     for i in range(2):
@@ -214,8 +238,6 @@ def _physics_engine(
         else:
             player = player2
             the_other_player = player1
-
-        _calculate_expected_landing_point_x(ball)
 
         _process_player_movement(player, user_inputs[i], the_other_player, ball)
 
@@ -227,6 +249,9 @@ def _physics_engine(
             if not player.is_collision_with_ball_happened:
                 _process_collision_between_ball_and_player(ball, player.x, user_inputs[i], player.state, rng)
                 player.is_collision_with_ball_happened = True
+                player.events["touch_ball"] = True
+                if player.state == 2:
+                    player.events["power_hit"] = True
         else:
             player.is_collision_with_ball_happened = False
 
@@ -264,6 +289,7 @@ def _process_collision_between_ball_and_world(ball: Ball) -> bool:
     future_ball_x = ball.x + ball.x_velocity
     if future_ball_x < BALL_RADIUS or future_ball_x > GROUND_WIDTH:
         ball.x_velocity = -ball.x_velocity
+        ball.events["wall_bounce"] = True
 
     # Y upper boundary
     future_ball_y = ball.y + ball.y_velocity
@@ -272,6 +298,7 @@ def _process_collision_between_ball_and_world(ball: Ball) -> bool:
 
     # Net collision
     if abs(ball.x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and ball.y > NET_PILLAR_TOP_TOP_Y_COORD:
+        ball.events["net_collision"] = True
         if ball.y <= NET_PILLAR_TOP_BOTTOM_Y_COORD:
             if ball.y_velocity > 0:
                 ball.y_velocity = -ball.y_velocity
@@ -365,56 +392,6 @@ def _process_collision_between_ball_and_player(
     else:
         ball.is_power_hit = False
 
-    _calculate_expected_landing_point_x(ball)
-
-
-# ---------------------------------------------------------------------------
-# Expected landing point calculation
-# ---------------------------------------------------------------------------
-
-
-def _calculate_expected_landing_point_x(ball: Ball) -> None:
-    """Calculate x coordinate of expected landing point of the ball.
-
-    Uses a copy-ball lookahead simulation.
-    Original: calculateExpectedLandingPointXFor in physics.js lines 738-788.
-    """
-    copy_x = ball.x
-    copy_y = ball.y
-    copy_x_velocity = ball.x_velocity
-    copy_y_velocity = ball.y_velocity
-
-    loop_counter = 0
-    while True:
-        loop_counter += 1
-
-        future_copy_x = copy_x_velocity + copy_x
-        if future_copy_x < BALL_RADIUS or future_copy_x > GROUND_WIDTH:
-            copy_x_velocity = -copy_x_velocity
-        if copy_y + copy_y_velocity < 0:
-            copy_y_velocity = 1
-
-        # Net collision for copy ball
-        if abs(copy_x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_y > NET_PILLAR_TOP_TOP_Y_COORD:
-            # NOTE: original uses < instead of <= for NET_PILLAR_TOP_BOTTOM_Y_COORD
-            # (possible original author mistake, preserved for accuracy)
-            if copy_y < NET_PILLAR_TOP_BOTTOM_Y_COORD:
-                if copy_y_velocity > 0:
-                    copy_y_velocity = -copy_y_velocity
-            else:
-                if copy_x < GROUND_HALF_WIDTH:
-                    copy_x_velocity = -abs(copy_x_velocity)
-                else:
-                    copy_x_velocity = abs(copy_x_velocity)
-
-        copy_y = copy_y + copy_y_velocity
-        if copy_y > BALL_TOUCHING_GROUND_Y_COORD or loop_counter >= INFINITE_LOOP_LIMIT:
-            break
-        copy_x = copy_x + copy_x_velocity
-        copy_y_velocity += 1
-
-    ball.expected_landing_point_x = copy_x
-
 
 # ---------------------------------------------------------------------------
 # Player movement
@@ -499,6 +476,7 @@ def _process_player_movement(
         elif player.state == 0 and user_input.x_direction != 0:
             # Standing → dive
             player.state = 3
+            player.events["diving"] = True
             player.frame_number = 0
             player.diving_direction = user_input.x_direction
             player.y_velocity = -5
