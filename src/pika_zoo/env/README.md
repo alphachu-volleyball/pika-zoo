@@ -31,11 +31,13 @@ Each action maps to a 5-element binary vector `[left, right, up, down, power_hit
 
 `ActionConverter` handles power_hit debouncing — `power_hit=1` only triggers on the rising edge (key was not pressed → now pressed), matching the original game behavior.
 
+> Use [`SimplifyAction`](../wrappers/README.md#simplifyaction) to reduce to 13 relative actions (TOWARD_NET/AWAY_FROM_NET).
+
 ## Observation Space
 
 35-element agent-centric vector: `[self(13), opponent(13), ball(9)]`.
 
-Each agent always sees itself at indices 0–12 and its opponent at 13–25, regardless of which side it is on. Coordinates are **absolute** (x=0 is left wall, x=432 is right wall).
+Each agent always sees itself at indices 0–12 and its opponent at 13–25, regardless of which side it is on. Coordinates are **absolute** (x=0 is left wall, x=432 is right wall). Use [`SimplifyObservation`](../wrappers/README.md#simplifyobservation) to mirror player_2's x-axis.
 
 ### Player Features (13 per player)
 
