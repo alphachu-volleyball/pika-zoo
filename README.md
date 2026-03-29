@@ -13,11 +13,17 @@ Python port of [Pikachu Volleyball Game](https://gorisanson.github.io/pikachu-vo
 
 ## Overview
 
-Python port of the reverse-engineered JS source code, wrapped with standard RL interfaces.
+Python port of the reverse-engineered JS source code, wrapped with standard RL interfaces. Provides utilities for RL training, evaluation, and visualization:
 
 - **Physics Engine**: Accurately reproduces the original ball trajectory, character movement, net collision, and scoring logic
 - **PettingZoo**: Two-player multi-agent environment (`ParallelEnv`)
 - **Gymnasium**: Single-agent wrapper (opponent fixed with a built-in policy)
+- **Wrappers**: Action/observation simplification, normalization, reward shaping — all opt-in and composable
+- **Rendering**: Pygame-based visualization with player skins, score overlay, and headless MP4 recording
+- **Episode Recording**: Per-round statistics, frame-by-frame state snapshots, and JSON export for replay analysis
+- **CLI**: `uv run play` for human play, AI matchups, and batch recording
+
+https://github.com/user-attachments/assets/9a2bf5d3-a855-48b9-b211-71503e1e3883
 
 ### RL Pipeline
 
