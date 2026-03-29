@@ -85,69 +85,20 @@ Opponent can be:
 
 ## RecordGame
 
-Unified game recording with hierarchical `FrameRecord → RoundRecord → GameRecord → GamesRecord` structure.
-
-### FrameRecord (23 columns)
-
-Each frame records player actions, positions/states, ball state, and event flags:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `frame` | int | Frame number (1-based) |
-| `round_number` | int | Current round (1-based) |
-| `player1_action` | int | Player 1 action index (0-17) |
-| `player1_x` | int | Player 1 x position |
-| `player1_y` | int | Player 1 y position |
-| `player1_state` | int | Player 1 state (0=normal, 1=jumping, 2=power_hitting, 3=diving, 4=lying_down) |
-| `player2_action` | int | Player 2 action index (0-17) |
-| `player2_x` | int | Player 2 x position |
-| `player2_y` | int | Player 2 y position |
-| `player2_state` | int | Player 2 state |
-| `ball_x` | int | Ball x position |
-| `ball_y` | int | Ball y position |
-| `ball_x_velocity` | int | Ball x velocity |
-| `ball_y_velocity` | int | Ball y velocity |
-| `ball_is_power_hit` | bool | Ball has power hit status |
-| `p1_touch_ball` | bool | Player 1 touched the ball |
-| `p1_power_hit` | bool | Player 1 power-hit the ball |
-| `p1_diving` | bool | Player 1 initiated a dive |
-| `p2_touch_ball` | bool | Player 2 touched the ball |
-| `p2_power_hit` | bool | Player 2 power-hit the ball |
-| `p2_diving` | bool | Player 2 initiated a dive |
-| `ball_wall_bounce` | bool | Ball bounced off a wall |
-| `ball_net_collision` | bool | Ball hit the net pillar |
-
-Action indices work correctly for both AI and human players (AI actions are reverse-mapped from UserInput via `user_input_to_action()`).
-
-### CSV format (`--stats`)
-
-`uv run play --stats game.csv` exports `to_frames_df()` as CSV. One row per frame, 23 columns, no index. Booleans as `True`/`False`.
-
-### Consistent interface at each level
-
-| | `num_frames` | `event_counts` | `scores` | `to_frames_df()` | `to_rounds_df()` | `to_games_df()` |
-|---|---|---|---|---|---|---|
-| RoundRecord | O | O | - | O | - | - |
-| GameRecord | O | O | O (computed) | O | O | - |
-| GamesRecord | O | O | O (sum) | O (+game_number) | O (+game_number) | O |
-
-### Export
+Wraps the env to record per-frame state into the hierarchical record structure. Data classes live in [`pika_zoo.records`](../records/README.md).
 
 ```python
-record = e.get_game_record()
+from pika_zoo.wrappers import RecordGame
+from pika_zoo.records import GameRecord, GamesRecord
 
-# Frame-level analysis (positions + events in one DataFrame)
-df = record.to_frames_df()
-df[df.p1_power_hit].ball_x.hist()              # ball position on power hits
+e = RecordGame(env(winning_score=15))
+e.reset()
+# ... game loop ...
+record = e.get_game_record()    # → GameRecord
 
-# Round-level aggregation
-record.to_rounds_df()
-
-# Multi-game analysis
-games = GamesRecord()
-games.games.append(record)
-games.win_rate                                  # {"player_1": 0.0, "player_2": 1.0}
-games.to_games_df()
+df = record.to_frames_df()      # 23-column DataFrame
+record.to_rounds_df()           # per-round aggregation
+record.to_dict()                # JSON export
 ```
 
 ## Files
