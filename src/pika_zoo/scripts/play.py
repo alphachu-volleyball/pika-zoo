@@ -129,7 +129,7 @@ def play(
         from pika_zoo.wrappers import RecordGame
 
         e = RecordGame(e)
-    e.reset(seed=seed)
+    cached_obs, _ = e.reset(seed=seed)
 
     # Print match info
     print(f"Pikachu Volleyball — {p1_label} vs {p2_label} (first to {winning_score})")
@@ -144,14 +144,8 @@ def play(
 
     # Set up recording
     writer = None
-    if record:
-        if render and e._renderer is not None:
-            frame = e._renderer.capture_frame()
-        elif render_mode == "rgb_array":
-            frame = e.render()
-        else:
-            frame = None
-
+    if record and render_mode is not None:
+        frame = e.render()
         if frame is not None:
             h, w = frame.shape[:2]
             writer = FFmpegWriter(record, w, h, fps)
@@ -191,29 +185,21 @@ def play(
             if p2_human:
                 actions["player_2"] = get_action_from_keys(keys, "player_2")
 
-        # Feed observations to SB3 models before step
-        if sb3_policies:
-            current_obs = e._get_observations()
+        # Feed cached observations to SB3 models before step
+        if sb3_policies and cached_obs is not None:
             for agent, policy in sb3_policies.items():
-                policy.set_observation(current_obs[agent])
+                policy.set_observation(cached_obs[agent])
 
         obs, rewards, terms, truncs, infos = e.step(actions)
+        cached_obs = obs
 
+        # Render + capture for recording
         if render_mode is not None:
-            e.render()
+            frame = e.render()
+            if writer is not None and frame is not None:
+                writer.write_frame(frame)
 
         frame_count += 1
-
-        # Capture for recording
-        if writer is not None:
-            if render and e._renderer is not None:
-                captured = e._renderer.capture_frame()
-            elif render_mode == "rgb_array":
-                captured = e.render()
-            else:
-                captured = None
-            if captured is not None:
-                writer.write_frame(captured)
 
         if any(terms.values()):
             scores = infos["player_1"]["scores"]
