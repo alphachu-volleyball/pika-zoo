@@ -214,7 +214,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.ball,
             self._scores,
             metadata={
-                "mode": "noisy" if self.noise is not None else "normal",
+                "noise": self.noise,
                 "p1_label": self._p1_label,
                 "p2_label": self._p2_label,
             },
