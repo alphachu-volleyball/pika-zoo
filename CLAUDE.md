@@ -72,6 +72,16 @@ The original JS embeds AI inside the physics engine (`processPlayerMovementAndSe
 - `ai/protocol.py`: `AIPolicy` Protocol — any object with `compute_action()` works
 - Environment layer calls `AIPolicy.compute_action()` before stepping physics
 
+## Physics Engine: Left-Right Asymmetry
+
+The original game has several left-right asymmetries in its integer physics. These are **intentionally preserved** — do not "fix" them. See [README.md#physics-engine-left-right-asymmetry](README.md#physics-engine-left-right-asymmetry) for the full list.
+
+Key rules when working on the physics engine:
+
+- **Do not symmetrize** collision boundaries, wall ranges, or power hit logic — they must match the original JS
+- **Do not add observation mirroring** — the physical asymmetries must be visible to the agent
+- Player 1 and player 2 models are always trained and evaluated separately
+
 ## Development Environment
 
 - **Python**: 3.10+
