@@ -29,16 +29,20 @@ Adapter that wraps an SB3 model (PPO, etc.) as an `AIPolicy`. Used by the `play`
 ```python
 SB3ModelPolicy(
     model_path="model.zip",
-    agent="player_1",       # required: determines action/observation mapping
-    simplified=True,        # remap 13 simplified actions → 18 raw actions
-    normalized=True,        # normalize observations before prediction
+    agent="player_1",              # required: determines action/observation mapping
+    action_simplified=True,        # remap 13 simplified actions → 18 raw actions
+    observation_simplified=False,  # mirror player_2 x-axis (SimplifyObservation)
+    observation_normalized=True,   # normalize observations to [0, 1]
 )
 ```
 
-- `simplified=True`: remaps model output (0–12) through the per-player `SimplifyAction` mapping table to raw actions (0–17)
-- `normalized=True`: applies the same min-max scaling as `NormalizeObservation` before passing observations to the model
+| Parameter | Default | Corresponding Wrapper |
+|-----------|---------|----------------------|
+| `action_simplified` | `True` | `SimplifyAction` — remap model output (0–12) to raw actions (0–17) |
+| `observation_simplified` | `False` | `SimplifyObservation` — mirror player_2 x-axis (only applied for player_2) |
+| `observation_normalized` | `True` | `NormalizeObservation` — min-max scale to [0, 1] |
 
-Both default to `True` since the standard training pipeline uses `SimplifyAction` + `NormalizeObservation` wrappers.
+Processing order: simplify → normalize (same as wrapper stacking order).
 
 ## Registry
 
