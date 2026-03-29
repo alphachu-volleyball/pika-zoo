@@ -36,6 +36,17 @@ class BuiltinAI:
     Satisfies the AIPolicy protocol.
     """
 
+    @staticmethod
+    def calculate_expected_landing_point_x(ball: Ball) -> None:
+        """Calculate x coordinate of expected landing point of the ball.
+
+        Uses a copy-ball lookahead simulation. Writes to ball.expected_landing_point_x.
+        Available as a static method so other AI implementations can reuse it.
+
+        Original: calculateExpectedLandingPointXFor in physics.js lines 738-788.
+        """
+        _calculate_expected_landing_point_x(ball)
+
     def compute_action(
         self,
         player: Player,
