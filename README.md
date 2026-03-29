@@ -3,15 +3,27 @@
 [![Release](https://img.shields.io/github/v/release/alphachu-volleyball/pika-zoo?label=release&logo=github)](https://github.com/alphachu-volleyball/pika-zoo/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
-Python port of [Pikachu Volleyball](https://github.com/gorisanson/pikachu-volleyball) (1997) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
+Python port of [Pikachu Volleyball Game](https://gorisanson.github.io/pikachu-volleyball/en/) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
+
+> **Original game**: Pikachu Volleyball (対戦ぴかちゅ～　ﾋﾞｰﾁﾊﾞﾚｰ編)
+> — 1997 (C) SACHI SOFT / SAWAYAKAN Programmers, Satoshi Takenouchi
+>
+> **Reverse-engineered JS**: [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball)
+> — The source code this project is based on
 
 ## Overview
 
-A Python port of the reverse-engineered JS implementation of the original Pikachu Volleyball, wrapped with standard RL interfaces.
+Python port of the reverse-engineered JS source code, wrapped with standard RL interfaces. Provides utilities for RL training, evaluation, and visualization:
 
 - **Physics Engine**: Accurately reproduces the original ball trajectory, character movement, net collision, and scoring logic
 - **PettingZoo**: Two-player multi-agent environment (`ParallelEnv`)
 - **Gymnasium**: Single-agent wrapper (opponent fixed with a built-in policy)
+- **Wrappers**: Action/observation simplification, normalization, reward shaping — all opt-in and composable
+- **Rendering**: Pygame-based visualization with player skins, score overlay, and headless MP4 recording
+- **Episode Recording**: Per-round statistics, frame-by-frame state snapshots, and JSON export for replay analysis
+- **CLI**: `uv run play` for human play, AI matchups, and batch recording
+
+https://github.com/user-attachments/assets/9a2bf5d3-a855-48b9-b211-71503e1e3883
 
 ### RL Pipeline
 
@@ -51,62 +63,29 @@ uv run ruff check .
 
 ## Environment
 
-### Observation Space
+- **Observation**: 35-element agent-centric vector `[self(13), opponent(13), ball(9)]` — [details](src/pika_zoo/env/README.md)
+- **Action**: 18 discrete actions (3 x-dir x 3 y-dir x 2 power_hit) — [details](src/pika_zoo/env/README.md#action-space)
+- **Wrappers**: opt-in, composable — [details](src/pika_zoo/wrappers/README.md)
 
-Low-dimensional vector observations (positions, velocities, etc.)
+```python
+from pika_zoo.env import env
+from pika_zoo.wrappers import SimplifyAction, SimplifyObservation, NormalizeObservation, ConvertSingleAgent
 
-### Action Space
-
-Discrete action space (directional keys + jump combinations)
+e = env(winning_score=15)
+e = SimplifyAction(e)              # 18 → 13 relative actions
+e = SimplifyObservation(e)         # mirror player_2 x-axis (optional)
+e = NormalizeObservation(e)        # scale observations to [0, 1]
+e = ConvertSingleAgent(e)          # PettingZoo → Gymnasium for SB3
+```
 
 ## Physics Engine: Left-Right Asymmetry
 
-The original Pikachu Volleyball uses integer-based physics with several left-right asymmetries.
-pika-zoo **intentionally preserves** these asymmetries so that RL agents train under the same conditions as the original game.
+The original Pikachu Volleyball uses integer-based physics with several left-right asymmetries (net collision boundary, power hit direction, wall bounce ranges, etc.). pika-zoo **intentionally preserves** these asymmetries so that RL agents train under the same conditions as the original game.
 
 > [!IMPORTANT]
-> Due to these asymmetries, **a single model cannot play both sides equally.** This project trains separate models for player 1 (left) and player 2 (right) without observation mirroring.
+> Due to these asymmetries, **a single model cannot play both sides equally** unless `SimplifyObservation` is applied to mirror player_2's x-axis. By default, this project trains separate models for player 1 (left) and player 2 (right).
 
-### 1. Net collision boundary
-
-When the ball hits the side of the net pillar, its horizontal direction is determined by which side of center (`x = 216`) it is on.
-The condition uses strict less-than (`<`), so a ball at exactly `x = 216` is treated as being on the **right side** and pushed rightward.
-The net's effective center is biased 1px to the right.
-
-### 2. Net collision: actual vs predicted
-
-The physics engine uses two separate collision checks for the ball against the top of the net:
-
-- **Actual ball**: uses `<=` (ball at the boundary counts as top collision, vertical bounce)
-- **Predicted ball** (for AI landing-point calculation): uses `<` (same position counts as side collision, horizontal bounce)
-
-At the exact boundary value, the real ball bounces vertically but the built-in AI predicts a horizontal bounce — causing occasional mispredictions.
-
-### 3. Power hit direction
-
-A power hit's horizontal direction is determined by **which side of the court the ball is on**, not by which player hit it or their input direction.
-The player's directional input affects only the **speed** (10 if no direction key, 20 if any direction key is held), while the `abs()` strips the actual direction.
-
-If a player jumps near the net and power-hits while the ball is on the opponent's side, the ball flies back into their own court.
-At `x = 216`, the ball is treated as right-side (same `<` boundary as net collision).
-
-### 4. Wall bounce asymmetry
-
-- **Left wall**: ball bounces when its center < `BALL_RADIUS` (20) — effectively when the ball's **surface** touches `x = 0`
-- **Right wall**: ball bounces when its center > `GROUND_WIDTH` (432) — the ball's **center** must pass the wall, ignoring the radius
-
-This means the ball can travel 20px further to the right before bouncing. Measured from center court (216): 196px to the left wall, 216px to the right wall.
-
-### 5. Input asymmetry (resolved)
-
-The original game uses absolute directional keys (LEFT/RIGHT), which have different meanings for each player.
-This is resolved by the `SimplifyAction` wrapper, which maps 13 relative actions (TOWARD_NET/AWAY_FROM_NET) to the correct absolute directions per player.
-
-### Design decisions
-
-- Asymmetries 1–4 are preserved from the original game to ensure RL agents train in an authentic environment
-- Separate models are trained for player 1 (left) and player 2 (right)
-- No observation mirroring is applied — this would hide the physical asymmetries from the agent
+See [engine/README.md](src/pika_zoo/engine/README.md#left-right-asymmetry) for the full technical breakdown.
 
 ## Development
 
