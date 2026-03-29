@@ -87,15 +87,49 @@ Opponent can be:
 
 Unified game recording with hierarchical `FrameRecord → RoundRecord → GameRecord → GamesRecord` structure.
 
-Each `FrameRecord` contains 22 fields: player positions/states + ball state + 8 event flags (touch, power hit, diving, wall bounce, net collision).
+### FrameRecord (23 columns)
+
+Each frame records player actions, positions/states, ball state, and event flags:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `frame` | int | Frame number (1-based) |
+| `round_number` | int | Current round (1-based) |
+| `player1_action` | int | Player 1 action index (0-17) |
+| `player1_x` | int | Player 1 x position |
+| `player1_y` | int | Player 1 y position |
+| `player1_state` | int | Player 1 state (0=normal, 1=jumping, 2=power_hitting, 3=diving, 4=lying_down) |
+| `player2_action` | int | Player 2 action index (0-17) |
+| `player2_x` | int | Player 2 x position |
+| `player2_y` | int | Player 2 y position |
+| `player2_state` | int | Player 2 state |
+| `ball_x` | int | Ball x position |
+| `ball_y` | int | Ball y position |
+| `ball_x_velocity` | int | Ball x velocity |
+| `ball_y_velocity` | int | Ball y velocity |
+| `ball_is_power_hit` | bool | Ball has power hit status |
+| `p1_touch_ball` | bool | Player 1 touched the ball |
+| `p1_power_hit` | bool | Player 1 power-hit the ball |
+| `p1_diving` | bool | Player 1 initiated a dive |
+| `p2_touch_ball` | bool | Player 2 touched the ball |
+| `p2_power_hit` | bool | Player 2 power-hit the ball |
+| `p2_diving` | bool | Player 2 initiated a dive |
+| `ball_wall_bounce` | bool | Ball bounced off a wall |
+| `ball_net_collision` | bool | Ball hit the net pillar |
+
+Action indices work correctly for both AI and human players (AI actions are reverse-mapped from UserInput via `user_input_to_action()`).
+
+### CSV format (`--stats`)
+
+`uv run play --stats game.csv` exports `to_frames_df()` as CSV. One row per frame, 23 columns, no index. Booleans as `True`/`False`.
 
 ### Consistent interface at each level
 
-| | `num_frames` | `event_counts` | `to_frames_df()` |
-|---|---|---|---|
-| RoundRecord | round frames | round events | round frames |
-| GameRecord | game frames | game events | all frames |
-| GamesRecord | total frames | total events | all frames (+game_number) |
+| | `num_frames` | `event_counts` | `scores` | `to_frames_df()` | `to_rounds_df()` | `to_games_df()` |
+|---|---|---|---|---|---|---|
+| RoundRecord | O | O | - | O | - | - |
+| GameRecord | O | O | O (computed) | O | O | - |
+| GamesRecord | O | O | O (sum) | O (+game_number) | O (+game_number) | O |
 
 ### Export
 
