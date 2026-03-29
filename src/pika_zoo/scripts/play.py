@@ -33,6 +33,7 @@ def play(
     fps: int = 25,
     render: bool = True,
     record: str | None = None,
+    stats: str | None = None,
     noise: NoiseConfig | None = None,
     p1_skin: str | None = None,
     p2_skin: str | None = None,
@@ -49,6 +50,7 @@ def play(
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
         record: Output MP4 path, or None to skip recording.
+        stats: Output CSV path for per-frame event stats, or None to skip.
         noise: Noise configuration for ball initialization. None disables noise.
         p1_skin: Pikachu skin for P1 (default: auto).
         p2_skin: Pikachu skin for P2 (default: auto).
@@ -161,6 +163,8 @@ def play(
         pygame = _pygame
         from pika_zoo.scripts.keyboard import get_action_from_keys
 
+    event_rows: list[dict] = []
+
     frame_count = 0
     running = True
     while running:
@@ -198,6 +202,10 @@ def play(
 
         frame_count += 1
 
+        # Collect events
+        if stats and "events" in infos.get("player_1", {}):
+            event_rows.append({"frame": frame_count, **infos["player_1"]["events"]})
+
         # Capture for recording
         if writer is not None:
             if render and e._renderer is not None:
@@ -218,6 +226,15 @@ def play(
     if writer is not None:
         writer.close()
         print(f"Saved to {record}")
+
+    if stats and event_rows:
+        import csv
+
+        with open(stats, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=event_rows[0].keys())
+            w.writeheader()
+            w.writerows(event_rows)
+        print(f"Stats saved to {stats}")
 
     e.close()
 
@@ -241,6 +258,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
+    parser.add_argument("--stats", type=str, default=None, metavar="FILE", help="Save per-frame event stats to CSV")
     parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N pixels")
     parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x velocity noise ±N")
     parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y velocity noise ±N")
@@ -258,6 +276,7 @@ def main(argv: list[str] | None = None) -> None:
         fps=args.fps,
         render=not args.no_render,
         record=args.record,
+        stats=args.stats,
         noise=_build_noise(args),
         p1_skin=args.p1_skin,
         p2_skin=args.p2_skin,
