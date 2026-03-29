@@ -12,8 +12,9 @@ Python port of the Pikachu Volleyball (1997) physics engine + PettingZoo/Gymnasi
 
 ### Observation / Action Space
 
-- **Observation**: Low-dimensional vector (positions, velocities, etc.) — CPU parallelization is the bottleneck, not GPU
-- **Action**: Discrete action space (directional keys + jump combinations)
+- **Observation**: 35-element agent-centric vector — see [env/README.md](src/pika_zoo/env/README.md#observation-space)
+- **Action**: 18 discrete actions (13 with SimplifyAction) — see [env/README.md](src/pika_zoo/env/README.md#action-space)
+- CPU parallelization is the bottleneck, not GPU
 
 ## Architecture
 
@@ -30,39 +31,16 @@ training-center → world-tournament: ONNX models (GitHub Releases)
 
 ### Package Structure
 
-```
-src/pika_zoo/
-├── engine/              # Pure physics engine (no AI)
-│   ├── constants.py     # Game constants (432×304, net, ball radius, etc.)
-│   ├── types.py         # UserInput, PlayerState(IntEnum)
-│   ├── rand.py          # rand() wrapper matching original [0, 32767]
-│   └── physics.py       # PikaPhysics, Player, Ball + collision/movement
-├── ai/                  # Pluggable AI system
-│   ├── protocol.py      # AIPolicy (typing.Protocol)
-│   ├── builtin.py       # Original gorisanson AI (with intentional bugs)
-│   ├── random.py        # RandomAI baseline
-│   ├── sb3_adapter.py   # SB3 model → AIPolicy adapter (optional dep)
-│   └── registry.py      # Name-based AI lookup + skin mapping
-├── env/                 # PettingZoo ParallelEnv
-│   ├── actions.py       # 18 discrete actions + ActionConverter (debouncing)
-│   ├── observations.py  # 35-element agent-centric observation builder
-│   └── pikachu_volleyball.py  # PikachuVolleyballEnv(ParallelEnv)
-├── wrappers/            # PettingZoo wrappers
-│   ├── convert_single_agent.py  # ParallelEnv → Gymnasium (for SB3)
-│   ├── simplify_action.py       # 18 → 13 relative-direction actions
-│   ├── normalize_observation.py # Min-max normalization to [0, 1]
-│   ├── reward_shaping.py        # Ball position + normal state rewards
-│   └── record_episode.py        # Per-round frame recording + JSON export
-├── rendering/           # Pygame renderer + overlays
-│   ├── renderer.py      # PygameRenderer (human + rgb_array modes)
-│   ├── sprites.py       # Sprite loading + per-player skins
-│   ├── overlays.py      # TextOverlay, MetadataOverlay
-│   └── assets/          # PNG sprites (pikachu_sprites/{skin}/, ball, bg)
-└── scripts/             # CLI commands
-    ├── play.py          # uv run play (watch, play, record)
-    ├── keyboard.py      # Keyboard input handler
-    └── video.py         # FFmpegWriter for MP4 recording
-```
+Each package has its own README with detailed documentation:
+
+| Package | Description | README |
+|---------|-------------|--------|
+| `engine/` | Pure physics engine (no AI) | [engine/README.md](src/pika_zoo/engine/README.md) |
+| `ai/` | Pluggable AI system | [ai/README.md](src/pika_zoo/ai/README.md) |
+| `env/` | PettingZoo ParallelEnv | [env/README.md](src/pika_zoo/env/README.md) |
+| `wrappers/` | PettingZoo / Gymnasium wrappers | [wrappers/README.md](src/pika_zoo/wrappers/README.md) |
+| `rendering/` | Pygame renderer + overlays | [rendering/README.md](src/pika_zoo/rendering/README.md) |
+| `scripts/` | CLI commands | [scripts/README.md](src/pika_zoo/scripts/README.md) |
 
 ### Key Design: AI Separation
 
@@ -74,7 +52,7 @@ The original JS embeds AI inside the physics engine (`processPlayerMovementAndSe
 
 ## Physics Engine: Left-Right Asymmetry
 
-The original game has several left-right asymmetries in its integer physics. These are **intentionally preserved** — do not "fix" them. See [README.md#physics-engine-left-right-asymmetry](README.md#physics-engine-left-right-asymmetry) for the full list.
+The original game has several left-right asymmetries in its integer physics. These are **intentionally preserved** — do not "fix" them. See [engine/README.md](src/pika_zoo/engine/README.md#left-right-asymmetry) for the full list.
 
 Key rules when working on the physics engine:
 
