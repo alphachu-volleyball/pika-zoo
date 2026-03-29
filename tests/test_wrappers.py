@@ -14,6 +14,7 @@ from pika_zoo.wrappers import (
     RecordEpisode,
     RewardShaping,
     SimplifyAction,
+    SimplifyObservation,
 )
 from pika_zoo.wrappers.simplify_action import NUM_SIMPLIFIED_ACTIONS
 
@@ -114,6 +115,86 @@ class TestSimplifyAction:
     def test_full_game(self):
         e = env(winning_score=2)
         wrapped = SimplifyAction(e)
+        wrapped.reset(seed=42)
+        game_ended = False
+        for _ in range(3000):
+            actions = {"player_1": 0, "player_2": 0}
+            obs, rewards, terms, truncs, infos = wrapped.step(actions)
+            if any(terms.values()):
+                game_ended = True
+                break
+        assert game_ended
+
+
+class TestSimplifyObservation:
+    def test_player1_unchanged(self):
+        """Player 1 observations should pass through unmodified."""
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped_obs, _ = wrapped.reset(seed=42)
+
+        np.testing.assert_array_equal(wrapped_obs["player_1"], raw_obs["player_1"])
+
+    def test_player2_x_mirrored(self):
+        """Player 2 x-positions should be mirrored (432 - x)."""
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped_obs, _ = wrapped.reset(seed=42)
+
+        assert wrapped_obs["player_2"][0] == pytest.approx(432.0 - raw_obs["player_2"][0])
+        assert wrapped_obs["player_2"][13] == pytest.approx(432.0 - raw_obs["player_2"][13])
+        assert wrapped_obs["player_2"][26] == pytest.approx(432.0 - raw_obs["player_2"][26])
+
+    def test_player2_direction_negated(self):
+        """Player 2 x-direction/velocity should be negated."""
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped_obs, _ = wrapped.reset(seed=42)
+
+        assert wrapped_obs["player_2"][3] == pytest.approx(-raw_obs["player_2"][3])
+        assert wrapped_obs["player_2"][32] == pytest.approx(-raw_obs["player_2"][32])
+
+    def test_step_mirrors_player2(self):
+        """Mirroring should also apply to step() observations."""
+        raw_env = env()
+        raw_env.reset(seed=42)
+        raw_obs, _, _, _, _ = raw_env.step({"player_1": 0, "player_2": 0})
+
+        wrapped_env = env()
+        wrapped = SimplifyObservation(wrapped_env)
+        wrapped.reset(seed=42)
+        wrapped_obs, _, _, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+
+        assert wrapped_obs["player_2"][0] == pytest.approx(432.0 - raw_obs["player_2"][0])
+        assert wrapped_obs["player_2"][26] == pytest.approx(432.0 - raw_obs["player_2"][26])
+
+    def test_obs_shape_preserved(self):
+        e = env()
+        wrapped = SimplifyObservation(e)
+        obs, _ = wrapped.reset(seed=42)
+        for agent_obs in obs.values():
+            assert agent_obs.shape == (OBSERVATION_SIZE,)
+            assert agent_obs.dtype == np.float32
+
+    def test_symmetric_initial_positions(self):
+        """After mirroring, both players should see similar self.x at start."""
+        e = env()
+        wrapped = SimplifyObservation(e)
+        obs, _ = wrapped.reset(seed=42)
+        assert obs["player_1"][0] == pytest.approx(obs["player_2"][0])
+
+    def test_full_game(self):
+        e = env(winning_score=2)
+        wrapped = SimplifyObservation(e)
         wrapped.reset(seed=42)
         game_ended = False
         for _ in range(3000):
