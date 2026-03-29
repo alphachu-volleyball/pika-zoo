@@ -75,6 +75,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self._round_ended: bool = False
         self._game_ended: bool = False
         self._np_random: np.random.Generator | None = None
+        self._last_user_inputs: list | None = None
 
     @functools.cache
     def observation_space(self, agent: str) -> spaces.Box:
@@ -141,7 +142,6 @@ class PikachuVolleyballEnv(ParallelEnv):
         user_inputs = []
         for agent in self.possible_agents:
             if agent in self.ai_policies:
-                # AI overrides the action
                 ai_input = self.ai_policies[agent].compute_action(
                     players[agent], self._physics.ball, opponents[agent], self._np_random
                 )
@@ -149,6 +149,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             else:
                 action = actions.get(agent, 0)
                 user_inputs.append(self._action_converters[agent].convert(action))
+        self._last_user_inputs = user_inputs
 
         # Clear sound flags
         for sound_dict in [
@@ -242,9 +243,36 @@ class PikachuVolleyballEnv(ParallelEnv):
         }
 
     def _get_infos(self) -> dict[str, dict]:
+        inputs = self._last_user_inputs if self._last_user_inputs else None
+        user_inputs = {}
+        if inputs:
+            for i, agent in enumerate(self.possible_agents):
+                u = inputs[i]
+                user_inputs[agent] = {
+                    "x_direction": u.x_direction,
+                    "y_direction": u.y_direction,
+                    "power_hit": u.power_hit,
+                }
+        base = {"scores": list(self._scores), "round_ended": self._round_ended, "user_inputs": user_inputs}
+        if self._physics is not None:
+            p1 = self._physics.player1.events
+            p2 = self._physics.player2.events
+            ball = self._physics.ball.events
+            events = {
+                "p1_touch_ball": p1["touch_ball"],
+                "p1_power_hit": p1["power_hit"],
+                "p1_diving": p1["diving"],
+                "p2_touch_ball": p2["touch_ball"],
+                "p2_power_hit": p2["power_hit"],
+                "p2_diving": p2["diving"],
+                "ball_wall_bounce": ball["wall_bounce"],
+                "ball_net_collision": ball["net_collision"],
+            }
+        else:
+            events = {}
         return {
-            "player_1": {"scores": list(self._scores), "round_ended": self._round_ended},
-            "player_2": {"scores": list(self._scores), "round_ended": self._round_ended},
+            "player_1": {**base, "events": events},
+            "player_2": {**base, "events": events},
         }
 
     def _get_serve(self) -> bool:

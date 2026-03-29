@@ -28,6 +28,7 @@ uv run play --no-render                            # headless (stats only)
 | `--fps` | 25 | Frame rate |
 | `--no-render` | off | Disable pygame window |
 | `--record FILE` | None | Record to MP4 (requires ffmpeg) |
+| `--stats FILE` | None | Save per-frame stats to CSV (positions + events) |
 | `--noise-x N` | None | Ball x position noise ±N pixels |
 | `--noise-x-vel N` | None | Ball x velocity noise ±N |
 | `--noise-y-vel N` | None | Ball y velocity noise ±N |

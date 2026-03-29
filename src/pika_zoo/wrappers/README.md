@@ -85,9 +85,21 @@ Opponent can be:
 
 ## RecordGame
 
-Records per-frame game state snapshots and per-round scoring records. Exports to JSON via `get_game_record().to_dict()`.
+Wraps the env to record per-frame state into the hierarchical record structure. Data classes live in [`pika_zoo.records`](../records/README.md).
 
-Records include: frame-by-frame positions/states, round boundaries, server/scorer tracking, and episode statistics.
+```python
+from pika_zoo.wrappers import RecordGame
+from pika_zoo.records import GameRecord, GamesRecord
+
+e = RecordGame(env(winning_score=15))
+e.reset()
+# ... game loop ...
+record = e.get_game_record()    # → GameRecord
+
+df = record.to_frames_df()      # 23-column DataFrame
+record.to_rounds_df()           # per-round aggregation
+record.to_dict()                # JSON export
+```
 
 ## Files
 

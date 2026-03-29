@@ -104,14 +104,15 @@ class PygameRenderer:
         for overlay in self._overlays:
             overlay.draw(self._screen, metadata or {})
 
+        frame = np.transpose(pygame.surfarray.pixels3d(self._screen), axes=(1, 0, 2)).copy()
+
         if self._render_mode == "human":
             pygame.event.pump()
             pygame.display.flip()
             assert self._clock is not None
             self._clock.tick(FPS)
-            return None
-        else:
-            return np.transpose(pygame.surfarray.pixels3d(self._screen), axes=(1, 0, 2)).copy()
+
+        return frame
 
     def capture_frame(self) -> np.ndarray | None:
         """Capture the current screen as an RGB array, regardless of render mode.

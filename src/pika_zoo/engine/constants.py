@@ -27,6 +27,9 @@ NET_PILLAR_HALF_WIDTH: int = 25
 NET_PILLAR_TOP_TOP_Y_COORD: int = 176
 NET_PILLAR_TOP_BOTTOM_Y_COORD: int = 192
 
+# Physics FPS — one physics step = 1/25 second, independent of rendering
+PHYSICS_FPS: int = 25
+
 # Safety limit for trajectory prediction loops.
 # Not in the original machine code; added to prevent infinite loops
 # when ball x coord range is modified for left-right symmetry.

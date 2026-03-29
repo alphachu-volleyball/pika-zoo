@@ -39,6 +39,7 @@ Each package has its own README with detailed documentation:
 | `ai/` | Pluggable AI system | [ai/README.md](src/pika_zoo/ai/README.md) |
 | `env/` | PettingZoo ParallelEnv | [env/README.md](src/pika_zoo/env/README.md) |
 | `wrappers/` | PettingZoo / Gymnasium wrappers | [wrappers/README.md](src/pika_zoo/wrappers/README.md) |
+| `records/` | Game record data structures (FrameRecord, GameRecord, etc.) | [records/README.md](src/pika_zoo/records/README.md) |
 | `rendering/` | Pygame renderer + overlays | [rendering/README.md](src/pika_zoo/rendering/README.md) |
 | `scripts/` | CLI commands | [scripts/README.md](src/pika_zoo/scripts/README.md) |
 

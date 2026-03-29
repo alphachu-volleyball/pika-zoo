@@ -276,8 +276,8 @@ class TestRecordGame:
                 break
         record = wrapped.get_game_record()
         assert record is not None
-        assert record.total_frames > 0
-        assert len(record.frames) == record.total_frames
+        assert record.num_frames > 0
+        assert len(record.frames) == record.num_frames
 
     def test_episode_stats_in_info(self):
         e = env(winning_score=1)
@@ -340,7 +340,7 @@ class TestRecordGame:
         for r in record.rounds:
             assert len(r.frames) > 0
         # Total frames across rounds should equal total_frames
-        assert sum(len(r.frames) for r in record.rounds) == record.total_frames
+        assert sum(len(r.frames) for r in record.rounds) == record.num_frames
         # Frame numbers within each round should be contiguous and ascending
         for r in record.rounds:
             frame_nums = [f.frame for f in r.frames]
@@ -393,7 +393,7 @@ class TestRecordGame:
         for i in range(1, len(record.rounds)):
             assert record.rounds[i].server == record.rounds[i - 1].scorer
 
-    def test_round_duration(self):
+    def test_round_num_frames(self):
         e = env(winning_score=2)
         wrapped = RecordGame(e)
         wrapped.reset(seed=42)
@@ -403,8 +403,59 @@ class TestRecordGame:
                 break
         record = wrapped.get_game_record()
         for r in record.rounds:
-            assert r.duration == r.end_frame - r.start_frame + 1
-            assert r.duration == len(r.frames)
+            assert r.num_frames == r.end_frame - r.start_frame + 1
+            assert r.num_frames == len(r.frames)
+            # backward compat
+            assert r.duration == r.num_frames
+
+    def test_event_counts(self):
+        """event_counts should aggregate frame-level events."""
+        e = env(winning_score=3)
+        wrapped = RecordGame(e)
+        wrapped.reset(seed=42)
+        for _ in range(5000):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_game_record()
+        # Game-level event_counts
+        ec = record.event_counts
+        assert isinstance(ec, dict)
+        assert "p1_touch_ball" in ec
+        assert ec["p1_touch_ball"] > 0 or ec["p2_touch_ball"] > 0
+        # Round-level event_counts should sum to game-level
+        for key in ec:
+            assert ec[key] == sum(r.event_counts[key] for r in record.rounds)
+
+    def test_scores_computed(self):
+        """scores should be computed from rounds, not stored."""
+        e = env(winning_score=2)
+        wrapped = RecordGame(e)
+        wrapped.reset(seed=42)
+        for _ in range(3000):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_game_record()
+        scores = record.scores
+        p1_scored = sum(1 for r in record.rounds if r.scorer == "player_1")
+        p2_scored = sum(1 for r in record.rounds if r.scorer == "player_2")
+        assert scores == [p1_scored, p2_scored]
+
+    def test_frame_record_has_events(self):
+        """FrameRecord should include event flags."""
+        e = env(winning_score=1)
+        wrapped = RecordGame(e)
+        wrapped.reset(seed=42)
+        for _ in range(300):
+            obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+            if any(terms.values()):
+                break
+        record = wrapped.get_game_record()
+        f = record.frames[0]
+        assert hasattr(f, "p1_touch_ball")
+        assert hasattr(f, "ball_wall_bounce")
+        assert hasattr(f, "round_number")
 
     def test_no_frames_when_disabled(self):
         e = env(winning_score=1)
@@ -415,5 +466,5 @@ class TestRecordGame:
             if any(terms.values()):
                 break
         record = wrapped.get_game_record()
-        assert record.total_frames > 0
+        assert record.num_frames > 0
         assert len(record.frames) == 0
