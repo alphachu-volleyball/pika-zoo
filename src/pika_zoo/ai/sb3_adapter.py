@@ -8,11 +8,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 from numpy.random import Generator
 
 from pika_zoo.engine.physics import Ball, Player
 from pika_zoo.engine.types import UserInput
 from pika_zoo.env.actions import ACTION_TABLE
+from pika_zoo.wrappers.normalize_observation import OBS_LOW, OBS_RANGE
+from pika_zoo.wrappers.simplify_action import P1_MAP, P2_MAP
+
+_SIMPLIFIED_MAPS: dict[str, list[int]] = {
+    "player_1": P1_MAP,
+    "player_2": P2_MAP,
+}
 
 
 class SB3ModelPolicy:
@@ -25,9 +33,25 @@ class SB3ModelPolicy:
     Args:
         model_path: Path to saved SB3 model (.zip).
         deterministic: Use deterministic predictions (default True).
+        simplified: If True, treat model output as simplified 13-action indices
+            and remap through the per-player SimplifyAction table (default True).
+        normalized: If True, normalize raw observations to [0, 1] before prediction
+            using the same min-max scaling as NormalizeObservation (default True).
+        agent: Agent name ("player_1" or "player_2"). Required when simplified=True.
     """
 
-    def __init__(self, model_path: str | Path, deterministic: bool = True) -> None:
+    def __init__(
+        self,
+        model_path: str | Path,
+        deterministic: bool = True,
+        simplified: bool = True,
+        normalized: bool = True,
+        agent: str | None = None,
+    ) -> None:
+        if simplified and agent is None:
+            raise ValueError("agent must be specified when simplified=True")
+        if simplified and agent not in _SIMPLIFIED_MAPS:
+            raise ValueError(f"Unknown agent: {agent!r}. Must be 'player_1' or 'player_2'.")
         try:
             from stable_baselines3 import PPO
         except ImportError:
@@ -37,6 +61,8 @@ class SB3ModelPolicy:
 
         self._model = PPO.load(str(model_path), device="cpu")
         self._deterministic = deterministic
+        self._normalized = normalized
+        self._action_map: list[int] | None = _SIMPLIFIED_MAPS.get(agent) if simplified else None
         self._last_obs = None
 
     def set_observation(self, obs) -> None:
@@ -54,8 +80,16 @@ class SB3ModelPolicy:
         if self._last_obs is None:
             return UserInput()
 
-        action, _ = self._model.predict(self._last_obs, deterministic=self._deterministic)
+        obs = self._last_obs
+        if self._normalized:
+            obs = np.clip((obs - OBS_LOW) / OBS_RANGE, 0.0, 1.0).astype(np.float32)
+
+        action, _ = self._model.predict(obs, deterministic=self._deterministic)
         action_idx = int(action)
+
+        # Remap simplified (13) action to raw (18) action if needed
+        if self._action_map is not None:
+            action_idx = self._action_map[action_idx]
 
         # Convert action index to UserInput
         keys = ACTION_TABLE[action_idx]
