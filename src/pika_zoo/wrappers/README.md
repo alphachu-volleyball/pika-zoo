@@ -83,9 +83,9 @@ Opponent can be:
 - Callable `(obs → action)` — called each step
 - `None` — random actions
 
-## RecordEpisode
+## RecordGame
 
-Records per-frame game state snapshots and per-round scoring records. Exports to JSON via `get_episode_record().to_dict()`.
+Records per-frame game state snapshots and per-round scoring records. Exports to JSON via `get_game_record().to_dict()`.
 
 Records include: frame-by-frame positions/states, round boundaries, server/scorer tracking, and episode statistics.
 
@@ -98,4 +98,4 @@ Records include: frame-by-frame positions/states, round boundaries, server/score
 | `normalize_observation.py` | Min-max normalization to [0, 1] |
 | `reward_shaping.py` | Ball position + normal state rewards |
 | `convert_single_agent.py` | ParallelEnv → Gymnasium for SB3 |
-| `record_episode.py` | Per-round frame recording + JSON export |
+| `record_game.py` | Per-round frame recording + JSON export |

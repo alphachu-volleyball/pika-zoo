@@ -1,8 +1,8 @@
 """
-Wrapper that records episode statistics and per-frame game state for replay.
+Wrapper that records game statistics and per-frame state for replay.
 
 Records:
-- Episode length and cumulative rewards (in infos)
+- Game length and cumulative rewards (in infos, under "episode" key for SB3 compatibility)
 - Per-round scoring records with frames grouped by round
 - Per-frame game state snapshots for later JSON export
 """
@@ -53,8 +53,8 @@ class RoundRecord:
 
 
 @dataclass
-class EpisodeRecord:
-    """Complete record of an episode (full game)."""
+class GameRecord:
+    """Complete record of a game (all rounds up to winning_score)."""
 
     scores: list[int] = field(default_factory=lambda: [0, 0])
     total_frames: int = 0
@@ -72,7 +72,7 @@ class EpisodeRecord:
 
     @property
     def frames(self) -> list[FrameSnapshot]:
-        """Flat list of all frames across all rounds (backward compatible)."""
+        """Flat list of all frames across all rounds."""
         return [f for r in self.rounds for f in r.frames]
 
     def to_dict(self) -> dict[str, Any]:
@@ -96,8 +96,8 @@ class EpisodeRecord:
         }
 
 
-class RecordEpisode(BaseParallelWrapper):
-    """Record episode statistics and game state snapshots.
+class RecordGame(BaseParallelWrapper):
+    """Record game statistics and state snapshots.
 
     Args:
         env: The base PikachuVolleyballEnv.
@@ -108,7 +108,7 @@ class RecordEpisode(BaseParallelWrapper):
     def __init__(self, env, record_frames: bool = True) -> None:
         super().__init__(env)
         self._record_frames = record_frames
-        self._current_episode: EpisodeRecord | None = None
+        self._current_game: GameRecord | None = None
         self._frame_count: int = 0
         self._round_start_frame: int = 1
         self._prev_scores: list[int] = [0, 0]
@@ -117,7 +117,7 @@ class RecordEpisode(BaseParallelWrapper):
 
     def reset(self, seed=None, options=None):
         observations, infos = super().reset(seed=seed, options=options)
-        self._current_episode = EpisodeRecord()
+        self._current_game = GameRecord()
         self._frame_count = 0
         self._round_start_frame = 1
         self._prev_scores = [0, 0]
@@ -131,16 +131,16 @@ class RecordEpisode(BaseParallelWrapper):
         p2_action = actions.get("player_2", 0)
         observations, rewards, terminations, truncations, infos = super().step(actions)
 
-        if self._current_episode is None:
+        if self._current_game is None:
             return observations, rewards, terminations, truncations, infos
 
         # 1. Increment frame count
         self._frame_count += 1
-        self._current_episode.total_frames = self._frame_count
+        self._current_game.total_frames = self._frame_count
 
         # 2. Update cumulative rewards
-        self._current_episode.cumulative_rewards["player_1"] += rewards.get("player_1", 0.0)
-        self._current_episode.cumulative_rewards["player_2"] += rewards.get("player_2", 0.0)
+        self._current_game.cumulative_rewards["player_1"] += rewards.get("player_1", 0.0)
+        self._current_game.cumulative_rewards["player_2"] += rewards.get("player_2", 0.0)
 
         # 3. Record frame snapshot into current round buffer (BEFORE round detection)
         physics = self.env._physics
@@ -167,7 +167,7 @@ class RecordEpisode(BaseParallelWrapper):
         # 4. Detect round end by score change
         current_scores = list(self.env._scores)
         if current_scores != self._prev_scores:
-            round_number = len(self._current_episode.rounds) + 1
+            round_number = len(self._current_game.rounds) + 1
             if current_scores[0] > self._prev_scores[0]:
                 scorer = "player_1"
                 reward = {"player_1": 1.0, "player_2": -1.0}
@@ -175,7 +175,7 @@ class RecordEpisode(BaseParallelWrapper):
                 scorer = "player_2"
                 reward = {"player_1": -1.0, "player_2": 1.0}
 
-            self._current_episode.rounds.append(
+            self._current_game.rounds.append(
                 RoundRecord(
                     round_number=round_number,
                     server=self._current_server,
@@ -192,19 +192,20 @@ class RecordEpisode(BaseParallelWrapper):
             # Next round server: the scorer serves (env uses "winner" serve by default)
             self._current_server = "player_2" if self.env._is_player2_serve else "player_1"
 
-        # 5. Add episode stats to infos on game end
+        # 5. Add game stats to infos on game end
+        # NOTE: uses "episode" key for SB3/Gymnasium compatibility
         if any(terminations.values()):
-            self._current_episode.scores = current_scores
+            self._current_game.scores = current_scores
             for agent in infos:
                 infos[agent]["episode"] = {
-                    "length": self._current_episode.total_frames,
-                    "rewards": dict(self._current_episode.cumulative_rewards),
-                    "scores": list(self._current_episode.scores),
-                    "winner": self._current_episode.winner,
+                    "length": self._current_game.total_frames,
+                    "rewards": dict(self._current_game.cumulative_rewards),
+                    "scores": list(self._current_game.scores),
+                    "winner": self._current_game.winner,
                 }
 
         return observations, rewards, terminations, truncations, infos
 
-    def get_episode_record(self) -> EpisodeRecord | None:
-        """Return the current episode record (call after episode ends)."""
-        return self._current_episode
+    def get_game_record(self) -> GameRecord | None:
+        """Return the current game record (call after game ends)."""
+        return self._current_game
