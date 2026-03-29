@@ -59,6 +59,7 @@ class Player:
         "game_ended",
         "computer_where_to_stand_by",
         "sound",
+        "events",
     )
 
     def __init__(self, is_player2: bool, rng: Generator) -> None:
@@ -74,6 +75,11 @@ class Player:
             "pipikachu": False,
             "pika": False,
             "chu": False,
+        }
+        self.events: dict[str, bool] = {
+            "touch_ball": False,
+            "power_hit": False,
+            "diving": False,
         }
 
         self.initialize_for_new_round(rng)
@@ -119,6 +125,7 @@ class Ball:
         "previous_y",
         "previous_previous_y",
         "sound",
+        "events",
     )
 
     def __init__(self, is_player2_serve: bool) -> None:
@@ -135,6 +142,10 @@ class Ball:
         self.sound: dict[str, bool] = {
             "power_hit": False,
             "ball_touches_ground": False,
+        }
+        self.events: dict[str, bool] = {
+            "wall_bounce": False,
+            "net_collision": False,
         }
 
         self.initialize_for_new_round(is_player2_serve)
@@ -211,6 +222,13 @@ def _physics_engine(
     NOTE: The ``if (player.isComputer)`` branch is removed.
     AI input is decided externally before calling this function.
     """
+    # Clear per-frame events
+    for key in ball.events:
+        ball.events[key] = False
+    for p in (player1, player2):
+        for key in p.events:
+            p.events[key] = False
+
     is_ball_touching_ground = _process_collision_between_ball_and_world(ball)
 
     for i in range(2):
@@ -231,6 +249,9 @@ def _physics_engine(
             if not player.is_collision_with_ball_happened:
                 _process_collision_between_ball_and_player(ball, player.x, user_inputs[i], player.state, rng)
                 player.is_collision_with_ball_happened = True
+                player.events["touch_ball"] = True
+                if player.state == 2:
+                    player.events["power_hit"] = True
         else:
             player.is_collision_with_ball_happened = False
 
@@ -268,6 +289,7 @@ def _process_collision_between_ball_and_world(ball: Ball) -> bool:
     future_ball_x = ball.x + ball.x_velocity
     if future_ball_x < BALL_RADIUS or future_ball_x > GROUND_WIDTH:
         ball.x_velocity = -ball.x_velocity
+        ball.events["wall_bounce"] = True
 
     # Y upper boundary
     future_ball_y = ball.y + ball.y_velocity
@@ -276,6 +298,7 @@ def _process_collision_between_ball_and_world(ball: Ball) -> bool:
 
     # Net collision
     if abs(ball.x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and ball.y > NET_PILLAR_TOP_TOP_Y_COORD:
+        ball.events["net_collision"] = True
         if ball.y <= NET_PILLAR_TOP_BOTTOM_Y_COORD:
             if ball.y_velocity > 0:
                 ball.y_velocity = -ball.y_velocity
@@ -453,6 +476,7 @@ def _process_player_movement(
         elif player.state == 0 and user_input.x_direction != 0:
             # Standing → dive
             player.state = 3
+            player.events["diving"] = True
             player.frame_number = 0
             player.diving_direction = user_input.x_direction
             player.y_velocity = -5

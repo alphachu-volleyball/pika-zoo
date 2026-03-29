@@ -242,9 +242,18 @@ class PikachuVolleyballEnv(ParallelEnv):
         }
 
     def _get_infos(self) -> dict[str, dict]:
+        base = {"scores": list(self._scores), "round_ended": self._round_ended}
+        if self._physics is not None:
+            events = {
+                "player_1": dict(self._physics.player1.events),
+                "player_2": dict(self._physics.player2.events),
+                "ball": dict(self._physics.ball.events),
+            }
+        else:
+            events = {}
         return {
-            "player_1": {"scores": list(self._scores), "round_ended": self._round_ended},
-            "player_2": {"scores": list(self._scores), "round_ended": self._round_ended},
+            "player_1": {**base, "events": events},
+            "player_2": {**base, "events": events},
         }
 
     def _get_serve(self) -> bool:
