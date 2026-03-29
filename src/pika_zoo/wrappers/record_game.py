@@ -35,11 +35,15 @@ class FrameRecord:
 
     frame: int
     round_number: int
-    player1_action: int
+    player1_x_direction: int
+    player1_y_direction: int
+    player1_power_hit: int
     player1_x: int
     player1_y: int
     player1_state: int
-    player2_action: int
+    player2_x_direction: int
+    player2_y_direction: int
+    player2_power_hit: int
     player2_x: int
     player2_y: int
     player2_state: int
@@ -306,8 +310,6 @@ class RecordGame(BaseParallelWrapper):
         return observations, infos
 
     def step(self, actions):
-        p1_action = actions.get("player_1", 0)
-        p2_action = actions.get("player_2", 0)
         observations, rewards, terminations, truncations, infos = super().step(actions)
 
         if self._current_game is None:
@@ -319,19 +321,27 @@ class RecordGame(BaseParallelWrapper):
         self._current_game.cumulative_rewards["player_1"] += rewards.get("player_1", 0.0)
         self._current_game.cumulative_rewards["player_2"] += rewards.get("player_2", 0.0)
 
-        # Record frame with physics state + events
+        # Record frame with physics state + events + user inputs
         physics = self.env._physics
-        events = infos.get("player_1", {}).get("events", {})
+        p1_info = infos.get("player_1", {})
+        events = p1_info.get("events", {})
+        ui = p1_info.get("user_inputs", {})
+        p1_ui = ui.get("player_1", {})
+        p2_ui = ui.get("player_2", {})
         if physics is not None and self._record_frames:
             self._current_round_frames.append(
                 FrameRecord(
                     frame=self._frame_count,
                     round_number=len(self._current_game.rounds) + 1,
-                    player1_action=int(p1_action),
+                    player1_x_direction=int(p1_ui.get("x_direction", 0)),
+                    player1_y_direction=int(p1_ui.get("y_direction", 0)),
+                    player1_power_hit=int(p1_ui.get("power_hit", 0)),
                     player1_x=int(physics.player1.x),
                     player1_y=int(physics.player1.y),
                     player1_state=int(physics.player1.state),
-                    player2_action=int(p2_action),
+                    player2_x_direction=int(p2_ui.get("x_direction", 0)),
+                    player2_y_direction=int(p2_ui.get("y_direction", 0)),
+                    player2_power_hit=int(p2_ui.get("power_hit", 0)),
                     player2_x=int(physics.player2.x),
                     player2_y=int(physics.player2.y),
                     player2_state=int(physics.player2.state),

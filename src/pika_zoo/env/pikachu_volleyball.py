@@ -75,6 +75,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         self._round_ended: bool = False
         self._game_ended: bool = False
         self._np_random: np.random.Generator | None = None
+        self._last_user_inputs: list | None = None
 
     @functools.cache
     def observation_space(self, agent: str) -> spaces.Box:
@@ -141,7 +142,6 @@ class PikachuVolleyballEnv(ParallelEnv):
         user_inputs = []
         for agent in self.possible_agents:
             if agent in self.ai_policies:
-                # AI overrides the action
                 ai_input = self.ai_policies[agent].compute_action(
                     players[agent], self._physics.ball, opponents[agent], self._np_random
                 )
@@ -149,6 +149,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             else:
                 action = actions.get(agent, 0)
                 user_inputs.append(self._action_converters[agent].convert(action))
+        self._last_user_inputs = user_inputs
 
         # Clear sound flags
         for sound_dict in [
@@ -242,7 +243,17 @@ class PikachuVolleyballEnv(ParallelEnv):
         }
 
     def _get_infos(self) -> dict[str, dict]:
-        base = {"scores": list(self._scores), "round_ended": self._round_ended}
+        inputs = self._last_user_inputs if self._last_user_inputs else None
+        user_inputs = {}
+        if inputs:
+            for i, agent in enumerate(self.possible_agents):
+                u = inputs[i]
+                user_inputs[agent] = {
+                    "x_direction": u.x_direction,
+                    "y_direction": u.y_direction,
+                    "power_hit": u.power_hit,
+                }
+        base = {"scores": list(self._scores), "round_ended": self._round_ended, "user_inputs": user_inputs}
         if self._physics is not None:
             p1 = self._physics.player1.events
             p2 = self._physics.player2.events
