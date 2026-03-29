@@ -18,6 +18,8 @@ The environment calls `compute_action()` each frame for agents registered in `ai
 
 Port of the original gorisanson AI. Includes intentional bugs from the original code (e.g., the net collision prediction mismatch). Registered as `"builtin"` with orange skin.
 
+Exposes `BuiltinAI.calculate_expected_landing_point_x(ball)` as a static method — a lookahead simulation that predicts where the ball will land. Other AI implementations can reuse this without instantiating BuiltinAI.
+
 ### RandomAI
 
 Selects a random action each frame. Registered as `"random"` with lime skin.
