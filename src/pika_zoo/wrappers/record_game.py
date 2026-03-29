@@ -327,6 +327,7 @@ class RecordGame(BaseParallelWrapper):
         p1_ui = ui.get("player_1", {})
         p2_ui = ui.get("player_2", {})
         if physics is not None and self._record_frames:
+
             def _ui_tuple(ui: dict) -> tuple[int, int, int]:
                 return int(ui.get("x_direction", 0)), int(ui.get("y_direction", 0)), int(ui.get("power_hit", 0))
 
