@@ -164,6 +164,7 @@ def play(
         from pika_zoo.scripts.keyboard import get_action_from_keys
 
     event_rows: list[dict] = []
+    current_round = 1
 
     frame_count = 0
     running = True
@@ -204,7 +205,9 @@ def play(
 
         # Collect events
         if stats and "events" in infos.get("player_1", {}):
-            event_rows.append({"frame": frame_count, **infos["player_1"]["events"]})
+            event_rows.append({"frame": frame_count, "round": current_round, **infos["player_1"]["events"]})
+            if infos["player_1"].get("round_ended"):
+                current_round += 1
 
         # Capture for recording
         if writer is not None:
