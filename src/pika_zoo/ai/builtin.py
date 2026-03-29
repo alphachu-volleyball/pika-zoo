@@ -20,6 +20,7 @@ from pika_zoo.engine.constants import (
     GROUND_WIDTH,
     INFINITE_LOOP_LIMIT,
     NET_PILLAR_HALF_WIDTH,
+    NET_PILLAR_TOP_BOTTOM_Y_COORD,
     NET_PILLAR_TOP_TOP_Y_COORD,
     PLAYER_HALF_LENGTH,
     PLAYER_LENGTH,
@@ -46,6 +47,7 @@ class BuiltinAI:
 
         Original: letComputerDecideUserInput in physics.js lines 803-895.
         """
+        _calculate_expected_landing_point_x(ball)
         user_input = UserInput()
         _let_computer_decide_user_input(player, ball, opponent, user_input, rng)
         return user_input
@@ -161,6 +163,51 @@ def _decide_whether_input_power_hit(
                     user_input.y_direction = y_direction
                     return True
     return False
+
+
+def _calculate_expected_landing_point_x(ball: Ball) -> None:
+    """Calculate x coordinate of expected landing point of the ball.
+
+    Uses a copy-ball lookahead simulation. Moved from physics.py so that
+    this expensive calculation only runs when BuiltinAI needs it.
+
+    Original: calculateExpectedLandingPointXFor in physics.js lines 738-788.
+    """
+    copy_x = ball.x
+    copy_y = ball.y
+    copy_x_velocity = ball.x_velocity
+    copy_y_velocity = ball.y_velocity
+
+    loop_counter = 0
+    while True:
+        loop_counter += 1
+
+        future_copy_x = copy_x_velocity + copy_x
+        if future_copy_x < BALL_RADIUS or future_copy_x > GROUND_WIDTH:
+            copy_x_velocity = -copy_x_velocity
+        if copy_y + copy_y_velocity < 0:
+            copy_y_velocity = 1
+
+        # Net collision for copy ball
+        if abs(copy_x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_y > NET_PILLAR_TOP_TOP_Y_COORD:
+            # NOTE: original uses < instead of <= for NET_PILLAR_TOP_BOTTOM_Y_COORD
+            # (possible original author mistake, preserved for accuracy)
+            if copy_y < NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                if copy_y_velocity > 0:
+                    copy_y_velocity = -copy_y_velocity
+            else:
+                if copy_x < GROUND_HALF_WIDTH:
+                    copy_x_velocity = -abs(copy_x_velocity)
+                else:
+                    copy_x_velocity = abs(copy_x_velocity)
+
+        copy_y = copy_y + copy_y_velocity
+        if copy_y > BALL_TOUCHING_GROUND_Y_COORD or loop_counter >= INFINITE_LOOP_LIMIT:
+            break
+        copy_x = copy_x + copy_x_velocity
+        copy_y_velocity += 1
+
+    ball.expected_landing_point_x = copy_x
 
 
 def _expected_landing_point_x_when_power_hit(
