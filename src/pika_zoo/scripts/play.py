@@ -125,6 +125,10 @@ def play(
         p1_label=p1_label,
         p2_label=p2_label,
     )
+    if stats:
+        from pika_zoo.wrappers import RecordGame
+
+        e = RecordGame(e)
     e.reset(seed=seed)
 
     # Print match info
@@ -163,9 +167,6 @@ def play(
         pygame = _pygame
         from pika_zoo.scripts.keyboard import get_action_from_keys
 
-    event_rows: list[dict] = []
-    current_round = 1
-
     frame_count = 0
     running = True
     while running:
@@ -203,12 +204,6 @@ def play(
 
         frame_count += 1
 
-        # Collect events
-        if stats and "events" in infos.get("player_1", {}):
-            event_rows.append({"frame": frame_count, "round": current_round, **infos["player_1"]["events"]})
-            if infos["player_1"].get("round_ended"):
-                current_round += 1
-
         # Capture for recording
         if writer is not None:
             if render and e._renderer is not None:
@@ -230,14 +225,11 @@ def play(
         writer.close()
         print(f"Saved to {record}")
 
-    if stats and event_rows:
-        import csv
-
-        with open(stats, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=event_rows[0].keys())
-            w.writeheader()
-            w.writerows(event_rows)
-        print(f"Stats saved to {stats}")
+    if stats:
+        record = e.get_game_record()
+        if record is not None:
+            record.to_frames_df().to_csv(stats, index=False)
+            print(f"Stats saved to {stats} ({record.num_frames} frames)")
 
     e.close()
 
