@@ -223,17 +223,13 @@ def play(
 
 
 def _build_noise(args: argparse.Namespace) -> NoiseConfig | None:
-    has_custom = args.noise_x is not None or args.noise_x_vel is not None or args.noise_y_vel is not None
-    if not args.noise and not has_custom:
+    if args.noise_x is None and args.noise_x_vel is None and args.noise_y_vel is None:
         return None
-    kwargs: dict[str, int] = {}
-    if args.noise_x is not None:
-        kwargs["x_range"] = args.noise_x
-    if args.noise_x_vel is not None:
-        kwargs["x_velocity_range"] = args.noise_x_vel
-    if args.noise_y_vel is not None:
-        kwargs["y_velocity_range"] = args.noise_y_vel
-    return NoiseConfig(**kwargs)
+    return NoiseConfig(
+        x_range=args.noise_x or 0,
+        x_velocity_range=args.noise_x_vel or 0,
+        y_velocity_range=args.noise_y_vel or 0,
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -245,10 +241,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
-    parser.add_argument("--noise", action="store_true", help="Enable ball initialization noise (default ranges)")
-    parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N (default: 5)")
-    parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x_vel noise ±N (default: 3)")
-    parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y_vel noise ±N (default: 0)")
+    parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N pixels")
+    parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x velocity noise ±N")
+    parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y velocity noise ±N")
     parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
     parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
     parser.add_argument("--p1-label", type=str, default=None, help="P1 display label (default: auto)")

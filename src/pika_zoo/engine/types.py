@@ -18,9 +18,9 @@ class NoiseConfig:
     For example, x_range=5 means x += rng.integers(-5, 6).
     """
 
-    x_range: int = 5
-    x_velocity_range: int = 3
-    y_velocity_range: int = 0
+    x_range: int
+    x_velocity_range: int
+    y_velocity_range: int
 
 
 class PlayerState(IntEnum):
