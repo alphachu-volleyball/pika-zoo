@@ -6,10 +6,9 @@ Source: [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-vo
 
 ## Coordinate System
 
-- **Ground**: 432 x 304 pixels (x: [0, 432], y: [0, 304])
 - **Origin**: top-left corner
-- **X**: right-increasing
-- **Y**: down-increasing (0 = top, 304 = bottom)
+- **X**: right-increasing, range [0, 432] (`GROUND_WIDTH`)
+- **Y**: down-increasing, range [0, 304] (0 = top, 304 = bottom)
 - **Net**: x = 216 (center), top at y = 176, bottom of pillar top at y = 192
 
 ## Key Constants
@@ -50,7 +49,37 @@ Main physics container. Holds player1, player2, and ball. `run_engine_for_next_f
 
 ## Left-Right Asymmetry
 
-The original game has several asymmetries that are intentionally preserved. See [README.md](../../../README.md#physics-engine-left-right-asymmetry) for the complete list.
+The original game has several left-right asymmetries that are **intentionally preserved** so that RL agents train under the same conditions as the original game.
+
+### 1. Net collision boundary
+
+When the ball hits the side of the net pillar, its horizontal direction is determined by which side of center (`x = 216`) it is on.
+The condition uses strict less-than (`<`), so a ball at exactly `x = 216` is treated as being on the **right side** and pushed rightward.
+The net's effective center is biased 1px to the right.
+
+### 2. Net collision: actual vs predicted
+
+The physics engine uses two separate collision checks for the ball against the top of the net:
+
+- **Actual ball**: uses `<=` (ball at the boundary counts as top collision, vertical bounce)
+- **Predicted ball** (for AI landing-point calculation): uses `<` (same position counts as side collision, horizontal bounce)
+
+At the exact boundary value, the real ball bounces vertically but the built-in AI predicts a horizontal bounce — causing occasional mispredictions.
+
+### 3. Power hit direction
+
+A power hit's horizontal direction is determined by **which side of the court the ball is on**, not by which player hit it or their input direction.
+The player's directional input affects only the **speed** (10 if no direction key, 20 if any direction key is held), while the `abs()` strips the actual direction.
+
+If a player jumps near the net and power-hits while the ball is on the opponent's side, the ball flies back into their own court.
+At `x = 216`, the ball is treated as right-side (same `<` boundary as net collision).
+
+### 4. Wall bounce asymmetry
+
+- **Left wall**: ball bounces when its center < `BALL_RADIUS` (20) — effectively when the ball's **surface** touches `x = 0`
+- **Right wall**: ball bounces when its center > `GROUND_WIDTH` (432) — the ball's **center** must pass the wall, ignoring the radius
+
+This means the ball can travel 20px further to the right before bouncing. Measured from center court (216): 196px to the left wall, 216px to the right wall.
 
 ## rand()
 
