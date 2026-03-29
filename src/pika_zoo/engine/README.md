@@ -1,8 +1,8 @@
 # engine — Physics Engine
 
-Pure Python port of the Pikachu Volleyball (1997) physics engine. No AI logic — input is provided externally.
+Pure Python port of the Pikachu Volleyball physics engine. No AI logic — input is provided externally.
 
-Source: [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball) (reverse-engineered JS)
+Based on the reverse-engineered JS source code: [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball)
 
 ## Coordinate System
 

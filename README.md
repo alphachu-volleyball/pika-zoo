@@ -3,11 +3,17 @@
 [![Release](https://img.shields.io/github/v/release/alphachu-volleyball/pika-zoo?label=release&logo=github)](https://github.com/alphachu-volleyball/pika-zoo/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
-Python port of [Pikachu Volleyball](https://github.com/gorisanson/pikachu-volleyball) (1997) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
+Python port of [Pikachu Volleyball Game](https://gorisanson.github.io/pikachu-volleyball/en/) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
+
+> **Original game**: Pikachu Volleyball (対戦ぴかちゅ～　ﾋﾞｰﾁﾊﾞﾚｰ編)
+> — 1997 (C) SACHI SOFT / SAWAYAKAN Programmers, Satoshi Takenouchi
+>
+> **Reverse-engineered JS**: [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball)
+> — The source code this project is based on
 
 ## Overview
 
-A Python port of the reverse-engineered JS implementation of the original Pikachu Volleyball, wrapped with standard RL interfaces.
+Python port of the reverse-engineered JS source code, wrapped with standard RL interfaces.
 
 - **Physics Engine**: Accurately reproduces the original ball trajectory, character movement, net collision, and scoring logic
 - **PettingZoo**: Two-player multi-agent environment (`ParallelEnv`)

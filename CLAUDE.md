@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-Python port of the Pikachu Volleyball (1997) physics engine + PettingZoo/Gymnasium reinforcement learning environment, based on reverse-engineered source code.
+Python port of the Pikachu Volleyball physics engine + PettingZoo/Gymnasium reinforcement learning environment, based on the reverse-engineered JS source code ([gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball)).
 
 ### Goals
 
-- Accurately port the game physics from the original JS implementation ([gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball)) to Python
+- Accurately port the game physics from the reverse-engineered JS to Python
 - Provide standard RL interfaces via PettingZoo `ParallelEnv` (two-player) + Gymnasium wrapper
 - Referenced by training-center as a Git tag dependency for RL training
 
