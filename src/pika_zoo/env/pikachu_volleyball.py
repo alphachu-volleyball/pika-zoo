@@ -244,10 +244,18 @@ class PikachuVolleyballEnv(ParallelEnv):
     def _get_infos(self) -> dict[str, dict]:
         base = {"scores": list(self._scores), "round_ended": self._round_ended}
         if self._physics is not None:
+            p1 = self._physics.player1.events
+            p2 = self._physics.player2.events
+            ball = self._physics.ball.events
             events = {
-                "player_1": dict(self._physics.player1.events),
-                "player_2": dict(self._physics.player2.events),
-                "ball": dict(self._physics.ball.events),
+                "p1_touch_ball": p1["touch_ball"],
+                "p1_power_hit": p1["power_hit"],
+                "p1_diving": p1["diving"],
+                "p2_touch_ball": p2["touch_ball"],
+                "p2_power_hit": p2["power_hit"],
+                "p2_diving": p2["diving"],
+                "ball_wall_bounce": ball["wall_bounce"],
+                "ball_net_collision": ball["net_collision"],
             }
         else:
             events = {}
