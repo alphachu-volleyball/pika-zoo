@@ -85,9 +85,36 @@ Opponent can be:
 
 ## RecordGame
 
-Records per-frame game state snapshots and per-round scoring records. Exports to JSON via `get_game_record().to_dict()`.
+Unified game recording with hierarchical `FrameRecord → RoundRecord → GameRecord → GamesRecord` structure.
 
-Records include: frame-by-frame positions/states, round boundaries, server/scorer tracking, and episode statistics.
+Each `FrameRecord` contains 22 fields: player positions/states + ball state + 8 event flags (touch, power hit, diving, wall bounce, net collision).
+
+### Consistent interface at each level
+
+| | `num_frames` | `event_counts` | `to_frames_df()` |
+|---|---|---|---|
+| RoundRecord | round frames | round events | round frames |
+| GameRecord | game frames | game events | all frames |
+| GamesRecord | total frames | total events | all frames (+game_number) |
+
+### Export
+
+```python
+record = e.get_game_record()
+
+# Frame-level analysis (positions + events in one DataFrame)
+df = record.to_frames_df()
+df[df.p1_power_hit].ball_x.hist()              # ball position on power hits
+
+# Round-level aggregation
+record.to_rounds_df()
+
+# Multi-game analysis
+games = GamesRecord()
+games.games.append(record)
+games.win_rate                                  # {"player_1": 0.0, "player_2": 1.0}
+games.to_games_df()
+```
 
 ## Files
 

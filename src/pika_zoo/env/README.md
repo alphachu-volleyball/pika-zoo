@@ -71,6 +71,21 @@ Each agent always sees itself at indices 0–12 and its opponent at 13–25, reg
 | 33 | y_velocity | [-30, 30] |
 | 34 | is_power_hit | {0, 1} |
 
+## Per-Frame Events
+
+Available in `infos[agent]["events"]` each step, with flat keys for DataFrame-friendly access:
+
+| Key | Description |
+|-----|-------------|
+| `p1_touch_ball` | Player 1 touched the ball (rising edge) |
+| `p1_power_hit` | Player 1 power-hit the ball |
+| `p1_diving` | Player 1 initiated a dive |
+| `p2_touch_ball` | Player 2 touched the ball |
+| `p2_power_hit` | Player 2 power-hit the ball |
+| `p2_diving` | Player 2 initiated a dive |
+| `ball_wall_bounce` | Ball bounced off a wall |
+| `ball_net_collision` | Ball hit the net pillar |
+
 ## Files
 
 | File | Description |
