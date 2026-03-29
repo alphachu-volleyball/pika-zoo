@@ -146,13 +146,15 @@ class GameRecord:
 
         rows = []
         for r in self.rounds:
-            rows.append({
-                "round_number": r.round_number,
-                "server": r.server,
-                "scorer": r.scorer,
-                "num_frames": r.num_frames,
-                **r.event_counts,
-            })
+            rows.append(
+                {
+                    "round_number": r.round_number,
+                    "server": r.server,
+                    "scorer": r.scorer,
+                    "num_frames": r.num_frames,
+                    **r.event_counts,
+                }
+            )
         return pd.DataFrame(rows)
 
     def to_dict(self) -> dict[str, Any]:
@@ -242,14 +244,16 @@ class GamesRecord:
         rows = []
         for i, g in enumerate(self.games):
             for r in g.rounds:
-                rows.append({
-                    "game_number": i + 1,
-                    "round_number": r.round_number,
-                    "server": r.server,
-                    "scorer": r.scorer,
-                    "num_frames": r.num_frames,
-                    **r.event_counts,
-                })
+                rows.append(
+                    {
+                        "game_number": i + 1,
+                        "round_number": r.round_number,
+                        "server": r.server,
+                        "scorer": r.scorer,
+                        "num_frames": r.num_frames,
+                        **r.event_counts,
+                    }
+                )
         return pd.DataFrame(rows)
 
     def to_games_df(self):
@@ -259,14 +263,16 @@ class GamesRecord:
         rows = []
         for i, g in enumerate(self.games):
             s = g.scores
-            rows.append({
-                "game_number": i + 1,
-                "p1_score": s[0],
-                "p2_score": s[1],
-                "winner": g.winner,
-                "num_frames": g.num_frames,
-                **g.event_counts,
-            })
+            rows.append(
+                {
+                    "game_number": i + 1,
+                    "p1_score": s[0],
+                    "p2_score": s[1],
+                    "winner": g.winner,
+                    "num_frames": g.num_frames,
+                    **g.event_counts,
+                }
+            )
         return pd.DataFrame(rows)
 
 
