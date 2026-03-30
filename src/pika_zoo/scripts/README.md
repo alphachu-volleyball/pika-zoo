@@ -22,7 +22,7 @@ uv run play --no-render                            # headless (stats only)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"random"`, `"human"`, or path to `.zip` model |
+| `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, or model path |
 | `--winning-score` | 15 | Score to win |
 | `--seed` | None | Random seed |
 | `--fps` | 25 | Frame rate |
@@ -32,18 +32,26 @@ uv run play --no-render                            # headless (stats only)
 | `--noise-x N` | None | Ball x position noise ±N pixels |
 | `--noise-x-vel N` | None | Ball x velocity noise ±N |
 | `--noise-y-vel N` | None | Ball y velocity noise ±N |
-| `--p1-skin`, `--p2-skin` | auto | Override pikachu skin |
+| `--p1-skin`, `--p2-skin` | auto | Override pikachu skin (azure, gray, lime, orange, white, yellow) |
 | `--p1-label`, `--p2-label` | auto | Override display label |
+| `--p1-keymap`, `--p2-keymap` | P1=original, P2=arrows | Keyboard layout preset |
 
 ### Keyboard Controls
 
-| Player 1 | Player 2 | Action |
-|----------|----------|--------|
-| D | Left arrow | Move left |
-| G | Right arrow | Move right |
-| R | Up arrow | Jump |
-| V | Down arrow | Dive |
-| Z | Enter | Power hit |
+Three keymap presets are available, selectable via `--p1-keymap` / `--p2-keymap`:
+
+| Action | `original` (P1 default) | `wasd` | `arrows` (P2 default) |
+|--------|------------------------|--------|----------------------|
+| Move left | D | A | Left arrow |
+| Move right | G | D | Right arrow |
+| Jump | R | W | Up arrow |
+| Dive | V | S | Down arrow |
+| Power hit | Z | Enter | Space |
+
+```bash
+uv run play --p1 human --p2 duckll --p1-keymap arrows    # P1 uses arrow keys
+uv run play --p1 human --p2 human --p1-keymap wasd --p2-keymap arrows
+```
 
 ## Files
 

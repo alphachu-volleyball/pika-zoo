@@ -39,6 +39,8 @@ def play(
     p2_skin: str | None = None,
     p1_label: str | None = None,
     p2_label: str | None = None,
+    p1_keymap: str | None = None,
+    p2_keymap: str | None = None,
 ) -> None:
     """Run a Pikachu Volleyball match.
 
@@ -133,10 +135,15 @@ def play(
 
     # Print match info
     print(f"Pikachu Volleyball — {p1_label} vs {p2_label} (first to {winning_score})")
-    if p1_human:
-        print("  P1: D(left) G(right) R(up) V(down) Z(power hit)")
-    if p2_human:
-        print("  P2: Arrow keys + Enter (power hit)")
+    if p1_human or p2_human:
+        from pika_zoo.scripts.keyboard import keymap_help
+
+        if p1_human:
+            km = p1_keymap or "original"
+            print(f"  P1: {keymap_help(km)}")
+        if p2_human:
+            km = p2_keymap or "arrows"
+            print(f"  P2: {keymap_help(km)}")
 
     # Init render if needed
     if render_mode is not None:
@@ -181,9 +188,9 @@ def play(
         if pygame is not None and (p1_human or p2_human):
             keys = pygame.key.get_pressed()
             if p1_human:
-                actions["player_1"] = get_action_from_keys(keys, "player_1")
+                actions["player_1"] = get_action_from_keys(keys, "player_1", keymap=p1_keymap)
             if p2_human:
-                actions["player_2"] = get_action_from_keys(keys, "player_2")
+                actions["player_2"] = get_action_from_keys(keys, "player_2", keymap=p2_keymap)
 
         obs, rewards, terms, truncs, infos = e.step(actions)
 
@@ -261,6 +268,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--p1-label", type=str, default=None, help="P1 display label (default: auto)")
     parser.add_argument("--p2-label", type=str, default=None, help="P2 display label (default: auto)")
+    parser.add_argument("--p1-keymap", type=str, default=None, help="P1 keymap (available: original, wasd, arrows)")
+    parser.add_argument("--p2-keymap", type=str, default=None, help="P2 keymap (available: original, wasd, arrows)")
     args = parser.parse_args(argv)
 
     play(
@@ -277,6 +286,8 @@ def main(argv: list[str] | None = None) -> None:
         p2_skin=args.p2_skin,
         p1_label=args.p1_label,
         p2_label=args.p2_label,
+        p1_keymap=args.p1_keymap,
+        p2_keymap=args.p2_keymap,
     )
 
 
