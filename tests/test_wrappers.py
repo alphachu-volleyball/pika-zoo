@@ -73,6 +73,21 @@ class TestConvertSingleAgent:
                 break
         assert game_ended
 
+    def test_callable_opponent_with_wrapper(self):
+        """Callable opponent should work even when env is wrapped (no private access)."""
+        from pika_zoo.wrappers import NormalizeObservation
+
+        e = NormalizeObservation(env(winning_score=2))
+        wrapped = ConvertSingleAgent(e, agent="player_1", opponent_policy=lambda obs: 0)
+        wrapped.reset(seed=42)
+        game_ended = False
+        for _ in range(3000):
+            obs, reward, terminated, truncated, info = wrapped.step(0)
+            if terminated:
+                game_ended = True
+                break
+        assert game_ended
+
     def test_player2_as_agent(self):
         e = env(winning_score=1)
         wrapped = ConvertSingleAgent(e, agent="player_2", opponent_policy=BuiltinAI())
