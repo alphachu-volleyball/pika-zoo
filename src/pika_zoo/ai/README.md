@@ -91,8 +91,7 @@ skin = get_skin("builtin")  # → "orange"
 |------|-------------|
 | `protocol.py` | `AIPolicy` typing.Protocol |
 | `builtin.py` | Original gorisanson AI (with intentional bugs) |
-| `duckll.py` | duckll's enhanced AI (decision logic, serve machine, config) |
-| `duckll_prediction.py` | Ball path prediction + geometric helpers for duckll AI |
+| `duckll.py` | duckll's enhanced AI (prediction, decision, serve machine, config) |
 | `random.py` | Random action baseline |
 | `sb3_adapter.py` | SB3 model → AIPolicy adapter (optional dep) |
 | `registry.py` | Name-based AI lookup + skin mapping |

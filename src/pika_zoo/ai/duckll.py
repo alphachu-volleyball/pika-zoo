@@ -12,33 +12,52 @@ Credits: duckll (AI), pxter7777 (serve machine), CBKM (testing)
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 
 from numpy.random import Generator
 
-from pika_zoo.ai.duckll_prediction import (
-    BallPathEntry,
-    canblock,
-    canblock_predict,
-    cancatch,
-    cantouch,
-    compute_ball_path,
-    player_y_predict,
-    player_y_predict_jump,
-    sameside,
-    samesideloss,
-)
 from pika_zoo.engine.constants import (
+    BALL_RADIUS,
+    BALL_TOUCHING_GROUND_Y_COORD,
     GROUND_HALF_WIDTH,
     GROUND_WIDTH,
+    INFINITE_LOOP_LIMIT,
     NET_PILLAR_HALF_WIDTH,
     NET_PILLAR_TOP_BOTTOM_Y_COORD,
+    NET_PILLAR_TOP_TOP_Y_COORD,
     PLAYER_HALF_LENGTH,
     PLAYER_LENGTH,
+    PLAYER_TOUCHING_GROUND_Y_COORD,
 )
 from pika_zoo.engine.physics import Ball, Player
 from pika_zoo.engine.types import UserInput
+
+# ---------------------------------------------------------------------------
+# Ball path prediction (ported from physics.js lines 782-1170)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BallPathEntry:
+    """One frame in the ball's predicted path."""
+
+    x: int
+    y: int
+    x_velocity: int
+    y_velocity: int
+    predict: list[list[PredictEntry]] = field(default_factory=list)
+
+
+@dataclass
+class PredictEntry:
+    """One frame in a power-hit prediction sub-path."""
+
+    x: int
+    y: int
+    x_velocity: int
+    y_velocity: int
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -298,6 +317,322 @@ class DuckllAI:
     fancy multi-touch combos, anti-block system, and serve formulas.
     """
 
+    # -------------------------------------------------------------------
+    # Ball path prediction (ported from physics.js lines 782-1170)
+    # -------------------------------------------------------------------
+
+    @staticmethod
+    def compute_ball_path(ball: Ball) -> list[BallPathEntry]:
+        """Compute ball path with per-frame 6-direction power-hit predictions.
+
+        Original: calculateExpectedLandingPointXFor in physics.js lines 782-860.
+        Also sets ball.expected_landing_point_x as a side effect.
+        """
+        copy_x = ball.x
+        copy_y = ball.y
+        copy_x_velocity = ball.x_velocity
+        copy_y_velocity = ball.y_velocity
+
+        path: list[BallPathEntry] = []
+
+        # Initial predictions at current position
+        initial_predicts = DuckllAI._compute_all_predicts(copy_x, copy_y, copy_x_velocity, copy_y_velocity)
+        path.append(BallPathEntry(copy_x, copy_y, copy_x_velocity, copy_y_velocity, initial_predicts))
+
+        loop_counter = 0
+        while True:
+            loop_counter += 1
+
+            future_x = copy_x_velocity + copy_x
+            if future_x < BALL_RADIUS or future_x > GROUND_WIDTH:
+                copy_x_velocity = -copy_x_velocity
+            if copy_y + copy_y_velocity < 0:
+                copy_y_velocity = 1
+
+            # Net collision
+            if abs(copy_x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_y > NET_PILLAR_TOP_TOP_Y_COORD:
+                if copy_y <= NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                    if copy_y_velocity > 0:
+                        copy_y_velocity = -copy_y_velocity
+                else:
+                    if copy_x < GROUND_HALF_WIDTH:
+                        copy_x_velocity = -abs(copy_x_velocity)
+                    else:
+                        copy_x_velocity = abs(copy_x_velocity)
+
+            copy_y = copy_y + copy_y_velocity
+            if copy_y > BALL_TOUCHING_GROUND_Y_COORD or loop_counter >= INFINITE_LOOP_LIMIT:
+                break
+            copy_x = copy_x + copy_x_velocity
+            copy_y_velocity += 1
+
+            if len(path) < 34:
+                predicts = DuckllAI._compute_all_predicts(copy_x, copy_y, copy_x_velocity, copy_y_velocity)
+            else:
+                predicts = []
+            path.append(BallPathEntry(copy_x, copy_y, copy_x_velocity, copy_y_velocity, predicts))
+
+        ball.expected_landing_point_x = copy_x
+        return path
+
+    @staticmethod
+    def _compute_all_predicts(x: int, y: int, x_vel: int, y_vel: int) -> list[list[PredictEntry]]:
+        """Compute 6 power-hit prediction paths for all direction combinations.
+
+        Direction indices:
+            0: y=-1, x=0 (up smash)
+            1: y=-1, x=1 (up-forward smash)
+            2: y=0,  x=0 (drop)
+            3: y=0,  x=1 (forward)
+            4: y=1,  x=0 (thunder)
+            5: y=1,  x=1 (diagonal-down)
+        """
+        predicts: list[list[PredictEntry]] = []
+        for y_direction in range(-1, 2):
+            for x_direction in range(0, 2):
+                predicts.append(DuckllAI._simulate_power_hit(x, y, x_vel, y_vel, x_direction, y_direction))
+        return predicts
+
+    @staticmethod
+    def _simulate_power_hit(
+        x: int, y: int, x_vel: int, y_vel: int, x_direction: int, y_direction: int
+    ) -> list[PredictEntry]:
+        """Simulate a power hit from given position and return the resulting path.
+
+        Original: calculateExpectedLandingPointXwithpredict in physics.js lines 862-934.
+        """
+        copy_x = x
+        copy_y = y
+
+        ball_abs_y_velocity = abs(y_vel)
+        copy_y_velocity = -ball_abs_y_velocity
+        if ball_abs_y_velocity < 15:
+            copy_y_velocity = -15
+
+        if copy_x < GROUND_HALF_WIDTH:
+            copy_x_velocity = (abs(x_direction) + 1) * 10
+        else:
+            copy_x_velocity = -(abs(x_direction) + 1) * 10
+
+        copy_y_velocity = abs(copy_y_velocity) * y_direction * 2
+
+        loop_counter = 0
+        tmp_path: list[PredictEntry] = []
+        while True:
+            loop_counter += 1
+
+            future_x = copy_x_velocity + copy_x
+            if future_x < BALL_RADIUS or future_x > GROUND_WIDTH:
+                copy_x_velocity = -copy_x_velocity
+            if copy_y + copy_y_velocity < 0:
+                copy_y_velocity = 1
+
+            # Net collision
+            if abs(copy_x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_y > NET_PILLAR_TOP_TOP_Y_COORD:
+                if copy_y <= NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                    if copy_y_velocity > 0:
+                        copy_y_velocity = -copy_y_velocity
+                else:
+                    if copy_x < GROUND_HALF_WIDTH:
+                        copy_x_velocity = -abs(copy_x_velocity)
+                    else:
+                        copy_x_velocity = abs(copy_x_velocity)
+
+            copy_y = copy_y + copy_y_velocity
+            if copy_y > BALL_TOUCHING_GROUND_Y_COORD or loop_counter >= INFINITE_LOOP_LIMIT:
+                tmp_path.append(PredictEntry(copy_x, copy_y, copy_x_velocity, copy_y_velocity))
+                break
+            copy_x = copy_x + copy_x_velocity
+            copy_y_velocity += 1
+            tmp_path.append(PredictEntry(copy_x, copy_y, copy_x_velocity, copy_y_velocity))
+
+        return tmp_path
+
+    @staticmethod
+    def player_y_predict(player: Player, frame: int) -> int:
+        """Predict player Y position after 'frame' frames.
+
+        Original: playerYpredict in physics.js lines 936-959.
+        """
+        if player.state == 0:
+            total = -16
+            speed = -15
+            for _ in range(frame):
+                total += speed
+                speed += 1
+            if total > 0:
+                return PLAYER_TOUCHING_GROUND_Y_COORD
+            return PLAYER_TOUCHING_GROUND_Y_COORD + total
+        else:
+            speed = player.y_velocity
+            real_y = player.y + speed
+            for _ in range(frame):
+                speed += 1
+                real_y += speed
+            if real_y > PLAYER_TOUCHING_GROUND_Y_COORD:
+                return PLAYER_TOUCHING_GROUND_Y_COORD
+            return real_y
+
+    @staticmethod
+    def player_y_predict_jump(player: Player, frame: int) -> int:
+        """Predict player Y with double-jump (speed wraps at 17 -> -16).
+
+        Original: playerYpredictJump in physics.js lines 962-988.
+        """
+        if player.state == 0:
+            total = -16
+            speed = -15
+            for _ in range(frame):
+                total += speed
+                speed += 1
+                if speed == 17:
+                    speed = -16
+            return PLAYER_TOUCHING_GROUND_Y_COORD + total
+        else:
+            speed = player.y_velocity
+            real_y = player.y + speed
+            for _ in range(frame):
+                speed += 1
+                if speed == 17:
+                    speed = -16
+                real_y += speed
+            if real_y > 244:
+                real_y = 244
+            return real_y
+
+    @staticmethod
+    def other_player_y_predict(player: Player, frame: int) -> int:
+        """Predict opponent's Y position (accounts for left-right asymmetry).
+
+        Original: otherPlayerYpredict in physics.js lines 991-1018.
+        """
+        if player.is_player2:
+            return DuckllAI.player_y_predict_jump(player, frame)
+        else:
+            if player.state == 0:
+                total = 0
+                speed = -16
+                for _ in range(frame):
+                    total += speed
+                    speed += 1
+                    if speed == 17:
+                        speed = -16
+                return PLAYER_TOUCHING_GROUND_Y_COORD + total
+            else:
+                speed = player.y_velocity
+                real_y = player.y
+                for _ in range(frame):
+                    real_y += speed
+                    speed += 1
+                    if speed == 17:
+                        speed = -16
+                return real_y
+
+    @staticmethod
+    def sameside(player: Player, ball_x: int) -> bool:
+        """Check if ball_x is on the same side as the player.
+
+        Original: sameside in physics.js lines 1028-1035.
+        """
+        if ball_x == GROUND_HALF_WIDTH:
+            return True
+        if player.is_player2:
+            return ball_x > GROUND_HALF_WIDTH
+        return ball_x < GROUND_HALF_WIDTH
+
+    @staticmethod
+    def samesideloss(player: Player, ball_x: int) -> bool:
+        """Check if ball_x would cause a loss for the player (lands on their side).
+
+        Original: samesideloss in physics.js lines 1044-1048.
+        """
+        if player.is_player2:
+            return ball_x >= GROUND_HALF_WIDTH
+        return ball_x < GROUND_HALF_WIDTH
+
+    @staticmethod
+    def canblock(player: Player, predict: list[PredictEntry]) -> bool:
+        """Check if player can block this predicted trajectory (jumping).
+
+        Original: canblock in physics.js lines 1057-1079.
+        """
+        first = True
+        for frame in range(len(predict)):
+            if DuckllAI.sameside(player, predict[frame].x):
+                if first:
+                    if predict[frame].y > NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                        return False
+                    first = False
+                if abs(predict[frame].x - GROUND_HALF_WIDTH) > 60:
+                    return False
+                if abs(DuckllAI.other_player_y_predict(player, frame) - predict[frame].y) <= PLAYER_HALF_LENGTH:
+                    return True
+        return False
+
+    @staticmethod
+    def canblock_predict(player: Player, predict: list[PredictEntry]) -> bool:
+        """Check if player can block (standing, predicts jump).
+
+        Original: canblockPredict in physics.js lines 1088-1112.
+        """
+        first = True
+        player_y = 244 - 32
+        speed = -16
+        for frame in range(len(predict)):
+            player_y += speed
+            if DuckllAI.sameside(player, predict[frame].x):
+                if first:
+                    if predict[frame].y > NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                        return False
+                    first = False
+                    speed += 1
+                    continue
+                if abs(predict[frame].x - GROUND_HALF_WIDTH) > 60:
+                    return False
+                if predict[frame].y > player_y:
+                    return True
+            speed += 1
+        return False
+
+    @staticmethod
+    def cantouch(player: Player, copyball: BallPathEntry, frame: int) -> bool:
+        """Check if player can touch the ball at given frame.
+
+        Original: cantouch in physics.js lines 1122-1152.
+        """
+        if copyball.y < 76:
+            return False
+        if DuckllAI.sameside(player, copyball.x) and abs(copyball.x - player.x) <= 6 * frame + PLAYER_HALF_LENGTH + 6:
+            needframe = -1
+            if player.state > 0:
+                needframe = 16 - player.y_velocity - (1 if player.is_player2 else 0)
+                if frame < needframe:
+                    return abs(copyball.y - DuckllAI.other_player_y_predict(player, frame)) <= PLAYER_HALF_LENGTH
+            top = PLAYER_TOUCHING_GROUND_Y_COORD - PLAYER_HALF_LENGTH
+            speed = -16
+            for _ in range(frame - needframe):
+                top += speed
+                speed += 1
+                if speed > 0:
+                    break
+            return copyball.y >= top
+        return False
+
+    @staticmethod
+    def cancatch(player: Player, path: list[BallPathEntry]) -> bool:
+        """Check if player can catch the ball along its path (ground level).
+
+        Original: cancatch in physics.js lines 1159-1170.
+        """
+        for frame in range(len(path)):
+            copyball = path[frame]
+            if (
+                copyball.y >= PLAYER_TOUCHING_GROUND_Y_COORD - PLAYER_HALF_LENGTH
+                and abs(player.x - copyball.x) <= PLAYER_HALF_LENGTH + 6 * frame + 6
+            ):
+                return True
+        return False
+
     def __init__(self, config: DuckllAIConfig | None = None, preset: int | None = None) -> None:
         if preset is not None:
             if preset not in DIFFICULTY_PRESETS:
@@ -354,7 +689,7 @@ class DuckllAI:
             self._is_player2_serve = ball.x > GROUND_HALF_WIDTH
 
         # Compute ball path prediction
-        path = compute_ball_path(ball)
+        path = DuckllAI.compute_ball_path(ball)
 
         user_input = UserInput()
         self._let_ai_decide(player, ball, opponent, user_input, path)
@@ -434,9 +769,9 @@ class DuckllAI:
         keep_touch = True
         for frame in range(len(path)):
             copyball = path[frame]
-            if not sameside(other, copyball.x) and cantouch(player, copyball, frame):
+            if not DuckllAI.sameside(other, copyball.x) and DuckllAI.cantouch(player, copyball, frame):
                 break
-            if cantouch(other, copyball, frame):
+            if DuckllAI.cantouch(other, copyball, frame):
                 maychange = True
                 if other.is_collision_with_ball_happened and other.state == 2 and keep_touch:
                     maychange = False
@@ -465,8 +800,8 @@ class DuckllAI:
                 for frame in range(len(path)):
                     copyball = path[frame]
                     if (
-                        sameside(player, copyball.x)
-                        and abs(player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
+                        DuckllAI.sameside(player, copyball.x)
+                        and abs(DuckllAI.player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
                         and abs(player.x - copyball.x) <= 6 * frame + PLAYER_HALF_LENGTH + 6
                     ):
                         virtual_x = copyball.x
@@ -477,13 +812,13 @@ class DuckllAI:
                 player.state > 0
                 and player.y_velocity == ball.y_velocity - 1
                 and player.is_collision_with_ball_happened
-                and abs(player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
+                and abs(DuckllAI.player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
                 and abs(player.x - ball.x) <= PLAYER_HALF_LENGTH + 6
             ):
                 cansmash = True
                 if len(path) > 1:
                     predictball = path[1].predict[5]
-                    if samesideloss(other, predictball[-1].x) and len(predictball) < 10:
+                    if DuckllAI.samesideloss(other, predictball[-1].x) and len(predictball) < 10:
                         cansmash = True
                     else:
                         cansmash = False
@@ -525,9 +860,9 @@ class DuckllAI:
                 and st.second_attack < 0
                 and len(path) < 12
                 and (ball.expected_landing_point_x > player.x) == (ball.x > player.x)
-                and sameside(player, ball.expected_landing_point_x)
+                and DuckllAI.sameside(player, ball.expected_landing_point_x)
                 and abs(player.x - ball.expected_landing_point_x) > len(path) * 6 + PLAYER_HALF_LENGTH
-                and not cancatch(player, path)
+                and not DuckllAI.cancatch(player, path)
             ):
                 diving = True
 
@@ -558,7 +893,7 @@ class DuckllAI:
             and not player.is_collision_with_ball_happened
             and st.direction < 2
             and ball.y_velocity < -27
-            and abs(player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
+            and abs(DuckllAI.player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
         ):
             ui.x_direction = 0
             ui.y_direction = -1
@@ -578,7 +913,7 @@ class DuckllAI:
             and ((player.is_player2 and ball.x_velocity == 20) or (not player.is_player2 and ball.x_velocity == -20))
             and abs(player.x - GROUND_HALF_WIDTH) < PLAYER_HALF_LENGTH + 25
             and abs(player.x - ball.x) <= PLAYER_HALF_LENGTH
-            and abs(player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
+            and abs(DuckllAI.player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
         ):
             ui.x_direction = 1 if player.is_player2 else -1
 
@@ -627,19 +962,24 @@ class DuckllAI:
         keep_touch = True
         for frame in range(min(len(path), 32)):
             copyball = path[frame]
-            if cantouch(other, copyball, frame):
+            if DuckllAI.cantouch(other, copyball, frame):
                 if other.is_collision_with_ball_happened and other.state == 2 and keep_touch:
                     continue
                 for direct in range(6):
                     predict = copyball.predict[direct]
                     # Thunder detection
-                    if direct > 3 and len(predict) > 3 and predict[3].y_velocity < 3 and sameside(other, predict[1].x):
+                    if (
+                        direct > 3
+                        and len(predict) > 3
+                        and predict[3].y_velocity < 3
+                        and DuckllAI.sameside(other, predict[1].x)
+                    ):
                         short_len = 0
                         short_x = GROUND_HALF_WIDTH
                         break
                     else:
                         # Normal
-                        if sameside(player, predict[-1].x):
+                        if DuckllAI.sameside(player, predict[-1].x):
                             if len(predict) < short_len:
                                 short_len = len(predict)
                                 short_x = predict[-1].x
@@ -709,9 +1049,9 @@ class DuckllAI:
             and not st.fancy
             and player.state > 0
             and player.y_velocity < 16
-            and abs(player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
+            and abs(DuckllAI.player_y_predict(player, 0) - ball.y) <= PLAYER_HALF_LENGTH
             and abs(player.x - ball.x) <= PLAYER_HALF_LENGTH + 6
-            and sameside(player, ball.x)
+            and DuckllAI.sameside(player, ball.x)
             and not player.is_collision_with_ball_happened
         ):
             copyball = path[0]
@@ -723,7 +1063,7 @@ class DuckllAI:
                 player.state == 0
                 and abs(player.y - 16 - ball.y) <= PLAYER_HALF_LENGTH
                 and abs(player.x - ball.x) <= PLAYER_HALF_LENGTH + 6
-                and sameside(player, ball.x)
+                and DuckllAI.sameside(player, ball.x)
                 and not player.is_collision_with_ball_happened
             ):
                 copyball = path[0]
@@ -757,7 +1097,7 @@ class DuckllAI:
             predict = copyball.predict[direct]
             for pf in range(1, len(predict) - 1):
                 pball = predict[pf]
-                if not sameside(player, pball.x):
+                if not DuckllAI.sameside(player, pball.x):
                     break
                 if (
                     direct == 2
@@ -772,9 +1112,9 @@ class DuckllAI:
                 if (
                     self._true_rand() % 10 < 7
                     and direct == 3
-                    and player_y_predict_jump(player, pf + 1) == 228
-                    and abs(pball.y - player_y_predict_jump(player, pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict_jump(player, pf)) > PLAYER_HALF_LENGTH
+                    and DuckllAI.player_y_predict_jump(player, pf + 1) == 228
+                    and abs(pball.y - DuckllAI.player_y_predict_jump(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict_jump(player, pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 10000 <= short_path
                 ):
@@ -795,9 +1135,9 @@ class DuckllAI:
                 if (
                     self._true_rand() % 10 < 7
                     and direct == 2
-                    and player_y_predict_jump(player, pf + 1) != 244
-                    and abs(pball.y - player_y_predict_jump(player, pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict_jump(player, pf)) > PLAYER_HALF_LENGTH
+                    and DuckllAI.player_y_predict_jump(player, pf + 1) != 244
+                    and abs(pball.y - DuckllAI.player_y_predict_jump(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict_jump(player, pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 100 <= short_path
                     and not (abs(pball.x - GROUND_HALF_WIDTH) > 20 or pball.y > 176)
@@ -820,7 +1160,7 @@ class DuckllAI:
                     and direct == 2
                     and drop_x != 0
                     and abs(player.x - drop_x) > PLAYER_HALF_LENGTH
-                    and abs(pball.y - player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 100 <= short_path
                 ):
@@ -846,7 +1186,7 @@ class DuckllAI:
                     self._true_rand() % 10 < 7
                     and direct == 3
                     and pf > 3
-                    and abs(pball.y - player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 1000 <= short_path
                 ):
@@ -870,8 +1210,8 @@ class DuckllAI:
                 # Generic fancy
                 if (
                     self._true_rand() % 10 < 7
-                    and abs(pball.y - player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict(player, pf)) > PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict(player, pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 100 <= short_path
                 ):
@@ -894,7 +1234,7 @@ class DuckllAI:
                 if abs(player.x - ball.x) > PLAYER_HALF_LENGTH and direct % 2 == 0:
                     continue
                 predict = copyball.predict[direct]
-                if (samesideloss(other, predict[-1].x) or (player.state == 2 and len(predict) > 20)) and len(
+                if (DuckllAI.samesideloss(other, predict[-1].x) or (player.state == 2 and len(predict) > 20)) and len(
                     predict
                 ) <= short_path:
                     short_path = len(predict)
@@ -929,12 +1269,12 @@ class DuckllAI:
             predict = copyball.predict[direct]
             for pf in range(1, len(predict) - 1):
                 pball = predict[pf]
-                if not sameside(player, pball.x):
+                if not DuckllAI.sameside(player, pball.x):
                     break
                 if (
                     self._true_rand() % 10 < 7
-                    and abs(pball.y - player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict(player, pf)) > PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict(player, pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 100 <= short_path
                 ):
@@ -959,15 +1299,15 @@ class DuckllAI:
         if (
             st.second_attack < 0
             and short_path > -1
-            and sameside(player, ball.expected_landing_point_x)
+            and DuckllAI.sameside(player, ball.expected_landing_point_x)
             and abs(player.x - ball.expected_landing_point_x) > len(path) * 6 + PLAYER_HALF_LENGTH
-            and not cancatch(player, path)
+            and not DuckllAI.cancatch(player, path)
         ):
             for direct in range(2):
                 if abs(player.x - ball.x) > PLAYER_HALF_LENGTH and direct % 2 == 0:
                     continue
                 predict = copyball.predict[direct]
-                if (samesideloss(other, predict[-1].x) or len(predict) > 20) and (
+                if (DuckllAI.samesideloss(other, predict[-1].x) or len(predict) > 20) and (
                     len(predict) < short_path or (len(predict) == short_path and self._true_rand() % 2 < 1)
                 ):
                     short_path = len(predict)
@@ -995,11 +1335,11 @@ class DuckllAI:
             # Back attack
             if (
                 abs(ball.x - GROUND_HALF_WIDTH) > abs(player.x - GROUND_HALF_WIDTH)
-                and sameside(player, ball.x)
-                and player_y_predict(player, frame) != 244
+                and DuckllAI.sameside(player, ball.x)
+                and DuckllAI.player_y_predict(player, frame) != 244
                 and (copyball.x_velocity == 0 or (copyball.x_velocity < 0) == player.is_player2)
-                and abs(player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
-                and sameside(player, copyball.x)
+                and abs(DuckllAI.player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
+                and DuckllAI.sameside(player, copyball.x)
                 and abs(player.x - copyball.x) <= 6 * frame + PLAYER_HALF_LENGTH
             ):
                 # Back fancy flat
@@ -1012,7 +1352,7 @@ class DuckllAI:
                     predict = copyball.predict[direct]
                     for pf in range(1, len(predict) - 1):
                         pball = predict[pf]
-                        if not sameside(player, pball.x):
+                        if not DuckllAI.sameside(player, pball.x):
                             break
                         if direct == 3 and abs(pball.x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH:
                             flat_x = pball.x
@@ -1022,7 +1362,7 @@ class DuckllAI:
                             and frame > 1
                             and pf > 3
                             and (pball.x < copyball.x) == player.is_player2
-                            and abs(pball.y - player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
+                            and abs(pball.y - DuckllAI.player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
                             and abs(copyball.x - GROUND_HALF_WIDTH) > PLAYER_LENGTH
                             and abs(pball.x - copyball.x) <= 6 * pf + PLAYER_LENGTH
                             and pf - 1000 <= short_path
@@ -1049,15 +1389,17 @@ class DuckllAI:
             if (
                 frame > 20
                 and abs(copyball.x - GROUND_HALF_WIDTH) < 61
-                and player_y_predict(player, frame) != 244
+                and DuckllAI.player_y_predict(player, frame) != 244
                 and (copyball.x_velocity == 0 or (copyball.x_velocity > 0) == player.is_player2)
-                and abs(player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
-                and sameside(player, copyball.x)
+                and abs(DuckllAI.player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
+                and DuckllAI.sameside(player, copyball.x)
                 and abs(player.x - copyball.x) <= 6 * frame + PLAYER_HALF_LENGTH
             ):
                 for direct in (3, 5):
                     predict = copyball.predict[direct]
-                    if samesideloss(other, predict[-1].x) and (len(predict) < short_path or len(predict) == short_path):
+                    if DuckllAI.samesideloss(other, predict[-1].x) and (
+                        len(predict) < short_path or len(predict) == short_path
+                    ):
                         short_path = len(predict) - 1000
                         st.goodtime = frame
                         shift = PLAYER_HALF_LENGTH + 4 if player.is_player2 else -PLAYER_HALF_LENGTH - 4
@@ -1069,10 +1411,10 @@ class DuckllAI:
 
             # Normal attack
             if (
-                player_y_predict(player, frame) != 244
-                and abs(player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
-                and abs(player_y_predict(player, frame - 1) - path[frame - 1].y) > PLAYER_HALF_LENGTH
-                and sameside(player, copyball.x)
+                DuckllAI.player_y_predict(player, frame) != 244
+                and abs(DuckllAI.player_y_predict(player, frame) - copyball.y) <= PLAYER_HALF_LENGTH
+                and abs(DuckllAI.player_y_predict(player, frame - 1) - path[frame - 1].y) > PLAYER_HALF_LENGTH
+                and DuckllAI.sameside(player, copyball.x)
                 and abs(player.x - copyball.x) <= 6 * frame + PLAYER_HALF_LENGTH
             ):
                 self._normal_attack(player, ball, other, ui, path, copyball, frame, short_path)
@@ -1104,7 +1446,7 @@ class DuckllAI:
             predict = copyball.predict[direct]
             for pf in range(1, len(predict) - 1):
                 pball = predict[pf]
-                if not sameside(player, pball.x):
+                if not DuckllAI.sameside(player, pball.x):
                     break
                 if (
                     direct == 2
@@ -1119,9 +1461,9 @@ class DuckllAI:
                 if (
                     self._true_rand() % 10 < 7
                     and direct == 3
-                    and player_y_predict_jump(player, frame + pf + 1) == 228
-                    and abs(pball.y - player_y_predict_jump(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict_jump(player, frame + pf)) > PLAYER_HALF_LENGTH
+                    and DuckllAI.player_y_predict_jump(player, frame + pf + 1) == 228
+                    and abs(pball.y - DuckllAI.player_y_predict_jump(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict_jump(player, frame + pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - copyball.x) <= 6 * pf + PLAYER_LENGTH + 6
                     and pf - 10000 <= short_path
                 ):
@@ -1143,9 +1485,9 @@ class DuckllAI:
                 if (
                     self._true_rand() % 10 < 7
                     and direct == 2
-                    and player_y_predict_jump(player, frame + pf + 1) != 244
-                    and abs(pball.y - player_y_predict_jump(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict_jump(player, frame + pf)) > PLAYER_HALF_LENGTH
+                    and DuckllAI.player_y_predict_jump(player, frame + pf + 1) != 244
+                    and abs(pball.y - DuckllAI.player_y_predict_jump(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict_jump(player, frame + pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - copyball.x) <= 6 * pf + PLAYER_LENGTH
                     and pf - 100 <= short_path
                     and not (abs(pball.x - GROUND_HALF_WIDTH) > 20 or pball.y > 176)
@@ -1169,7 +1511,7 @@ class DuckllAI:
                     and direct == 2
                     and drop_x != 0
                     and frame > 15
-                    and abs(pball.y - player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
                     and abs(pball.x - copyball.x) <= 6 * pf + PLAYER_LENGTH
                     and pf - 100 <= short_path
                 ):
@@ -1196,7 +1538,7 @@ class DuckllAI:
                     and direct == 3
                     and frame > 1
                     and pf > 3
-                    and abs(pball.y - player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
                     and abs(copyball.x - GROUND_HALF_WIDTH) < GROUND_HALF_WIDTH - 6
                     and abs(pball.x - copyball.x) <= 6 * pf + PLAYER_LENGTH
                     and pf - 1000 <= short_path
@@ -1221,12 +1563,12 @@ class DuckllAI:
                 # Generic normal fancy
                 if (
                     (self._true_rand() % 10 < 6 or drop_second)
-                    and abs(pball.y - player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict(player, frame + pf)) > PLAYER_HALF_LENGTH
+                    and abs(pball.y - DuckllAI.player_y_predict(player, frame + pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict(player, frame + pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - copyball.x)
                     <= 6 * pf
                     + PLAYER_LENGTH
-                    + (6 if (direct % 2 == 1 or (samesideloss(other, predict[-1].x) and direct > 0)) else 0)
+                    + (6 if (direct % 2 == 1 or (DuckllAI.samesideloss(other, predict[-1].x) and direct > 0)) else 0)
                     and pf - 100 <= short_path
                 ):
                     short_path = pf - 100
@@ -1252,13 +1594,13 @@ class DuckllAI:
             # Jump or miss
             if (
                 st.second_attack < 0
-                and samesideloss(player, ball.expected_landing_point_x)
+                and DuckllAI.samesideloss(player, ball.expected_landing_point_x)
                 and abs(player.x - ball.expected_landing_point_x) > len(path) * 6 + PLAYER_HALF_LENGTH
-                and not cancatch(player, path)
+                and not DuckllAI.cancatch(player, path)
             ):
                 for direct in range(6):
                     predict = copyball.predict[direct]
-                    if (samesideloss(other, predict[-1].x) or len(predict) > 20) and (
+                    if (DuckllAI.samesideloss(other, predict[-1].x) or len(predict) > 20) and (
                         len(predict) < short_path or (len(predict) == short_path and self._true_rand() % 2 < 1)
                     ):
                         short_path = len(predict)
@@ -1297,7 +1639,7 @@ class DuckllAI:
                         continue
                     if (
                         self._true_rand() % 10 < 6
-                        and samesideloss(other, predict[-1].x)
+                        and DuckllAI.samesideloss(other, predict[-1].x)
                         and (len(predict) < short_path or (len(predict) == short_path and self._true_rand() % 2 < 1))
                     ):
                         short_path = len(predict)
@@ -1344,14 +1686,14 @@ class DuckllAI:
             predict = copyball.predict[direct]
             for pf in range(1, len(predict) - 1):
                 pball = predict[pf]
-                if not sameside(player, pball.x):
+                if not DuckllAI.sameside(player, pball.x):
                     break
                 # Second fancy jump
                 if (
                     direct == 2
-                    and player_y_predict_jump(player, pf + 1) != 244
-                    and abs(pball.y - player_y_predict_jump(player, pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict_jump(player, pf)) > PLAYER_HALF_LENGTH
+                    and DuckllAI.player_y_predict_jump(player, pf + 1) != 244
+                    and abs(pball.y - DuckllAI.player_y_predict_jump(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict_jump(player, pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 100 <= short_path
                     and not (abs(pball.x - GROUND_HALF_WIDTH) > 20 or pball.y > 176)
@@ -1368,8 +1710,8 @@ class DuckllAI:
 
                 # Second fancy normal
                 if (
-                    abs(pball.y - player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
-                    and abs(predict[pf - 1].y - player_y_predict(player, pf)) > PLAYER_HALF_LENGTH
+                    abs(pball.y - DuckllAI.player_y_predict(player, pf + 1)) <= PLAYER_HALF_LENGTH
+                    and abs(predict[pf - 1].y - DuckllAI.player_y_predict(player, pf)) > PLAYER_HALF_LENGTH
                     and abs(pball.x - player.x) <= 6 * pf + PLAYER_HALF_LENGTH + 6
                     and pf - 100 <= short_path
                 ):
@@ -1400,7 +1742,7 @@ class DuckllAI:
                 if abs(ball.x - player.x) > PLAYER_HALF_LENGTH and direct % 2 == 0:
                     continue
                 predict = copyball.predict[direct]
-                if samesideloss(other, predict[-1].x):
+                if DuckllAI.samesideloss(other, predict[-1].x):
                     if len(predict) < short_path:
                         st.direction = direct
                         short_path = len(predict)
@@ -1476,7 +1818,7 @@ class DuckllAI:
                     continue
                 predict = copyball.predict[direct]
                 far = abs(other.x - predict[-1].x)
-                if len(predict) < 50 and samesideloss(other, predict[-1].x) and far >= farthest:
+                if len(predict) < 50 and DuckllAI.samesideloss(other, predict[-1].x) and far >= farthest:
                     farthest = far
                     st.direction = direct
 
@@ -1491,15 +1833,15 @@ class DuckllAI:
             short_path_ab = 1000
 
             if other.state == 0 or other.y_velocity > 12:
-                if canblock_predict(other, copyball.predict[st.direction]):
+                if DuckllAI.canblock_predict(other, copyball.predict[st.direction]):
                     for direct in range(6):
                         if abs(player.x - ball.x) > PLAYER_HALF_LENGTH and direct % 2 == 0:
                             continue
                         predict = copyball.predict[direct]
                         if (
-                            samesideloss(other, predict[-1].x)
+                            DuckllAI.samesideloss(other, predict[-1].x)
                             and len(predict) <= short_path_ab
-                            and (direct > 3 or not canblock_predict(other, predict))
+                            and (direct > 3 or not DuckllAI.canblock_predict(other, predict))
                         ):
                             short_path_ab = len(predict)
                             st.direction = direct
@@ -1507,15 +1849,15 @@ class DuckllAI:
                 else:
                     canbypass = True
             else:
-                if canblock(other, copyball.predict[st.direction]):
+                if DuckllAI.canblock(other, copyball.predict[st.direction]):
                     for direct in range(6):
                         if abs(player.x - ball.x) > PLAYER_HALF_LENGTH and direct % 2 == 0:
                             continue
                         predict = copyball.predict[direct]
                         if (
-                            samesideloss(other, predict[-1].x)
+                            DuckllAI.samesideloss(other, predict[-1].x)
                             and len(predict) <= short_path_ab
-                            and ((direct > 3 and self._true_rand() % 10 < 2) or not canblock(other, predict))
+                            and ((direct > 3 and self._true_rand() % 10 < 2) or not DuckllAI.canblock(other, predict))
                         ):
                             short_path_ab = len(predict)
                             st.direction = direct
