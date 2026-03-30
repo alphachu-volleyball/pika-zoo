@@ -304,10 +304,13 @@ class DuckllAI:
                 available = ", ".join(str(k) for k in sorted(DIFFICULTY_PRESETS.keys()))
                 raise ValueError(f"Unknown preset: {preset!r}. Available: {available}")
             self._config = DIFFICULTY_PRESETS[preset]
+            self._preset = preset
         elif config is not None:
             self._config = config
+            self._preset = None
         else:
             self._config = DIFFICULTY_PRESETS[10]
+            self._preset = 10
 
         self._state = _PlayerAIState()
         self._serve_machine: _ServeMachine | None = None
@@ -315,6 +318,13 @@ class DuckllAI:
         self._frame_counter = 0
         self._is_player2_serve: bool | None = None
         self._true_rng = random.Random()
+
+    @property
+    def label(self) -> str:
+        """Display label including difficulty level, e.g. 'duckll lv.4'."""
+        if self._preset is not None:
+            return f"duckll lv.{self._preset}"
+        return "duckll"
 
     def _true_rand(self) -> int:
         """Non-deterministic random, matching JS Math.random() usage."""

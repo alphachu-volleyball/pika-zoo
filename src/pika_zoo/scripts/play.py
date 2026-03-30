@@ -101,16 +101,19 @@ def play(
     else:
         render_mode = None
 
-    def _make_label(spec: str, is_human: bool) -> str:
+    def _make_label(agent: str, spec: str, is_human: bool) -> str:
         if is_human:
             return "human"
+        policy = ai_policies.get(agent)
+        if policy is not None and hasattr(policy, "label"):
+            return policy.label
         if Path(spec).exists():
             p = Path(spec)
             return p.parent.name if p.stem == "model" else p.stem
         return spec
 
-    p1_label = p1_label or _make_label(p1, p1_human)
-    p2_label = p2_label or _make_label(p2, p2_human)
+    p1_label = p1_label or _make_label("player_1", p1, p1_human)
+    p2_label = p2_label or _make_label("player_2", p2, p2_human)
 
     e = env(
         render_mode=render_mode,
