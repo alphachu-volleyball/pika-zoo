@@ -59,6 +59,7 @@ class ConvertSingleAgent(gym.Env):
         self.observation_space = env.observation_space(agent)
         self.action_space = env.action_space(agent)
         self.render_mode = env.render_mode
+        self._last_observations: dict[str, np.ndarray] | None = None
 
     def reset(
         self,
@@ -66,6 +67,7 @@ class ConvertSingleAgent(gym.Env):
         options: dict[str, Any] | None = None,
     ) -> tuple[np.ndarray, dict]:
         observations, infos = self._env.reset(seed=seed, options=options)
+        self._last_observations = observations
         return observations[self._agent], infos[self._agent]
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -77,6 +79,7 @@ class ConvertSingleAgent(gym.Env):
         }
 
         observations, rewards, terminations, truncations, infos = self._env.step(actions)
+        self._last_observations = observations
 
         return (
             observations[self._agent],
@@ -99,7 +102,8 @@ class ConvertSingleAgent(gym.Env):
 
         # Callable: obs → action
         if self._opponent_policy is not None:
-            obs = self._env._get_observations()[self._opponent]
+            assert self._last_observations is not None, "Call reset() before step()"
+            obs = self._last_observations[self._opponent]
             return int(self._opponent_policy(obs))
 
         # None: random action
