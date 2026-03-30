@@ -9,6 +9,8 @@ Source: https://github.com/gorisanson/pikachu-volleyball/blob/main/src/resources
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from numpy.random import Generator
 
 from pika_zoo.engine.constants import (
@@ -24,6 +26,11 @@ from pika_zoo.engine.constants import (
 )
 from pika_zoo.engine.rand import rand
 from pika_zoo.engine.types import NoiseConfig, UserInput
+
+# Type alias for the AI callback used in run_engine_for_next_frame.
+# Called after ball moves, before player moves — matching the original JS order
+# where letComputerDecideUserInput is inside processPlayerMovementAndSetPlayerPosition.
+PlayerInputCallback = Callable[["Player", "Ball", "Player"], UserInput] | None
 
 
 def _trunc_div(a: int, b: int) -> int:
@@ -196,12 +203,28 @@ class PikaPhysics:
         self.player2 = Player(is_player2=True, rng=rng)
         self.ball = Ball(is_player2_serve=False)
 
-    def run_engine_for_next_frame(self, user_inputs: list[UserInput], rng: Generator) -> bool:
+    def run_engine_for_next_frame(
+        self,
+        user_inputs: list[UserInput],
+        rng: Generator,
+        input_callbacks: list[PlayerInputCallback] | None = None,
+    ) -> bool:
         """Run one frame of physics. Returns True if ball touches ground.
 
         Original: runEngineForNextFrame / physicsEngine in physics.js lines 303-371.
+
+        Args:
+            user_inputs: Base inputs for each player (from keyboard/RL agent).
+            rng: Random generator.
+            input_callbacks: Optional per-player callbacks called after ball
+                moves but before player moves, matching the original JS order
+                where ``letComputerDecideUserInput`` is called inside
+                ``processPlayerMovementAndSetPlayerPosition``.
+                Signature: ``(player, ball, opponent) -> UserInput``.
+                When provided, the returned UserInput overrides user_inputs
+                for that player.
         """
-        return _physics_engine(self.player1, self.player2, self.ball, user_inputs, rng)
+        return _physics_engine(self.player1, self.player2, self.ball, user_inputs, rng, input_callbacks)
 
 
 # ---------------------------------------------------------------------------
@@ -215,12 +238,16 @@ def _physics_engine(
     ball: Ball,
     user_inputs: list[UserInput],
     rng: Generator,
+    input_callbacks: list[PlayerInputCallback] | None = None,
 ) -> bool:
     """The main physics engine — one frame of simulation.
 
-    Original: physicsEngine in physics.js lines 303-371.
-    NOTE: The ``if (player.isComputer)`` branch is removed.
-    AI input is decided externally before calling this function.
+    Original: physicsEngine in physics.js lines 341-408.
+
+    In the original JS, the AI call (``letComputerDecideUserInput``) happens
+    inside ``processPlayerMovementAndSetPlayerPosition``, after the ball has
+    moved. The ``input_callbacks`` parameter reproduces this ordering:
+    ball moves → callback overrides input → player moves.
     """
     # Clear per-frame events
     for key in ball.events:
@@ -238,6 +265,10 @@ def _physics_engine(
         else:
             player = player2
             the_other_player = player1
+
+        # Original: letComputerDecideUserInput called here, inside processPlayerMovement
+        if input_callbacks and input_callbacks[i] is not None:
+            user_inputs[i] = input_callbacks[i](player, ball, the_other_player)
 
         _process_player_movement(player, user_inputs[i], the_other_player, ball)
 
