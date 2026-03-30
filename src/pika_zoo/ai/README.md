@@ -20,6 +20,28 @@ Port of the original gorisanson AI. Includes intentional bugs from the original 
 
 Exposes `BuiltinAI.calculate_expected_landing_point_x(ball)` as a static method — a lookahead simulation that predicts where the ball will land. Other AI implementations can reuse this without instantiating BuiltinAI.
 
+### DuckllAI
+
+Port of duckll's enhanced AI from [duckll/pikachu-volleyball](https://github.com/duckll/pikachu-volleyball). Significantly stronger than BuiltinAI, featuring:
+
+- **Ball path prediction** — full trajectory simulation with 6-direction power-hit lookahead per frame
+- **Fancy combos** — multi-touch aerial attacks (hit → reposition → hit again)
+- **Anti-block** — predicts opponent blocking and switches direction
+- **Serve machine** — 10 (P1) / 8 (P2) pre-programmed frame-perfect serve formulas
+- **5 defense modes** — mid, mid_plus, mirror, predict, close
+
+Registered as `"duckll"` with azure skin. 11 difficulty presets (0–10):
+
+```python
+DuckllAI()            # default: preset 10 (invincible)
+DuckllAI(preset=0)    # beginner
+DuckllAI(preset=5)    # mid-level
+```
+
+The `label` property returns `"duckll lv.N"` for display.
+
+Attack pattern randomness is derived from the env seed via `reset(rng)`, ensuring reproducibility while maintaining per-episode variety.
+
 ### RandomAI
 
 Selects a random action each frame. Registered as `"random"` with lime skin.
@@ -60,6 +82,7 @@ skin = get_skin("builtin")  # → "orange"
 | Name | Class | Skin |
 |------|-------|------|
 | `"builtin"` | `BuiltinAI` | orange |
+| `"duckll"` | `DuckllAI` | azure |
 | `"random"` | `RandomAI` | lime |
 
 ## Files
@@ -68,6 +91,8 @@ skin = get_skin("builtin")  # → "orange"
 |------|-------------|
 | `protocol.py` | `AIPolicy` typing.Protocol |
 | `builtin.py` | Original gorisanson AI (with intentional bugs) |
+| `duckll.py` | duckll's enhanced AI (decision logic, serve machine, config) |
+| `duckll_prediction.py` | Ball path prediction + geometric helpers for duckll AI |
 | `random.py` | Random action baseline |
 | `sb3_adapter.py` | SB3 model → AIPolicy adapter (optional dep) |
 | `registry.py` | Name-based AI lookup + skin mapping |
