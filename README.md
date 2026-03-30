@@ -21,7 +21,8 @@ Python port of the reverse-engineered JS source code, wrapped with standard RL i
 - **Wrappers**: Action/observation simplification, normalization, reward shaping — all opt-in and composable
 - **Rendering**: Pygame-based visualization with player skins, score overlay, and headless MP4 recording
 - **Episode Recording**: Per-round statistics, frame-by-frame state snapshots, and JSON export for replay analysis
-- **CLI**: `uv run play` for human play, AI matchups, and batch recording
+- **AI Opponents**: BuiltinAI (original), DuckllAI (11 difficulty levels), StoneAI, RandomAI — pluggable via `AIPolicy` protocol
+- **CLI**: `uv run play` for human play, AI matchups, custom keymaps, and batch recording
 
 https://github.com/user-attachments/assets/9a2bf5d3-a855-48b9-b211-71503e1e3883
 
@@ -100,5 +101,6 @@ feat/* ──(squash)──► release/{version} ──(merge)──► main ─
 ## Related Projects
 
 - [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball) — Reverse-engineered JS reimplementation of the original game
+- [duckll/pikachu-volleyball](https://github.com/duckll/pikachu-volleyball) — Enhanced AI (DuckllAI source)
 - [helpingstar/pika-zoo](https://github.com/helpingstar/pika-zoo) — Pikachu Volleyball PettingZoo environment
 - [hankluo6/Pikachu-VolleyBall-RL](https://github.com/hankluo6/Pikachu-VolleyBall-RL) — Prior work with PPO/ES

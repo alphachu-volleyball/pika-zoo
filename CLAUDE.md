@@ -47,9 +47,9 @@ Each package has its own README with detailed documentation:
 
 The original JS embeds AI inside the physics engine (`processPlayerMovementAndSetPlayerPosition` calls `letComputerDecideUserInput`). In pika-zoo, AI is fully separated:
 
-- `engine/physics.py`: pure function `(state, inputs) → next_state`
+- `engine/physics.py`: pure physics, AI input via `input_callbacks` (called after ball moves, before player moves — matching original JS order)
 - `ai/protocol.py`: `AIPolicy` Protocol — any object with `compute_action()` works
-- Environment layer calls `AIPolicy.compute_action()` before stepping physics
+- Environment layer passes AI policies as callbacks into the physics engine
 
 ## Physics Engine: Left-Right Asymmetry
 
@@ -145,6 +145,7 @@ No submodules — significant customization needed. When copying external code, 
 | [helpingstar/pika-zoo](https://github.com/helpingstar/pika-zoo) | MIT | PettingZoo environment reference |
 | [hankluo6/gym-pikachu-volleyball](https://github.com/hankluo6/gym-pikachu-volleyball) | TBD | Gymnasium environment reference |
 | [gorisanson/pikachu-volleyball](https://github.com/gorisanson/pikachu-volleyball) | UNLICENSED (TBD) | Original reverse-engineered JS |
+| [duckll/pikachu-volleyball](https://github.com/duckll/pikachu-volleyball) | UNLICENSED (TBD) | Enhanced AI (DuckllAI) source |
 
 ## Hardware Notes
 

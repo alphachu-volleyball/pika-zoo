@@ -45,7 +45,9 @@ Collision handling:
 
 ### PikaPhysics
 
-Main physics container. Holds player1, player2, and ball. `run_engine_for_next_frame(user_inputs, rng)` advances one frame.
+Main physics container. Holds player1, player2, and ball. `run_engine_for_next_frame(user_inputs, rng, input_callbacks)` advances one frame.
+
+The optional `input_callbacks` parameter accepts per-player callbacks that are invoked **after ball moves but before player moves**, matching the original JS order where `letComputerDecideUserInput` is called inside `processPlayerMovementAndSetPlayerPosition`. The environment uses this to inject AI policy decisions at the correct timing.
 
 ## Left-Right Asymmetry
 
