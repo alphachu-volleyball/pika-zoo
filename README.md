@@ -24,17 +24,35 @@ Python port of the reverse-engineered JS source code, wrapped with standard RL i
 - **AI Opponents**: BuiltinAI (original), DuckllAI (11 difficulty levels), StoneAI, RandomAI — pluggable via `AIPolicy` protocol
 - **CLI**: `uv run play` for human play, AI matchups, custom keymaps, and batch recording
 
-https://github.com/user-attachments/assets/9a2bf5d3-a855-48b9-b211-71503e1e3883
-
 ### AI Opponents (vs Human)
 
-| AI | Demo |
-|----|------|
-| BuiltinAI (original) | https://github.com/user-attachments/assets/fa7a05a3-22df-4b72-b579-f979b1b25402 |
-| DuckllAI lv.10 | https://github.com/user-attachments/assets/6f32bf0b-a7ff-4eab-904c-96772075a7ea |
-| Custom RL Model | https://github.com/user-attachments/assets/d777a247-46f2-4e6a-ba50-88054fd4d9d9 |
-| RandomAI | https://github.com/user-attachments/assets/579457a9-c018-4f51-816b-738511bbb660 |
-| StoneAI | https://github.com/user-attachments/assets/1fbf6c3b-8148-4077-b2c7-e97fd88d0cc3 |
+<table>
+<tr><td><b>BuiltinAI</b> (original)</td><td>
+
+https://github.com/user-attachments/assets/fa7a05a3-22df-4b72-b579-f979b1b25402
+
+</td></tr>
+<tr><td><b>DuckllAI lv.10</b></td><td>
+
+https://github.com/user-attachments/assets/6f32bf0b-a7ff-4eab-904c-96772075a7ea
+
+</td></tr>
+<tr><td><b>Custom RL Model</b></td><td>
+
+https://github.com/user-attachments/assets/d777a247-46f2-4e6a-ba50-88054fd4d9d9
+
+</td></tr>
+<tr><td><b>RandomAI</b></td><td>
+
+https://github.com/user-attachments/assets/579457a9-c018-4f51-816b-738511bbb660
+
+</td></tr>
+<tr><td><b>StoneAI</b></td><td>
+
+https://github.com/user-attachments/assets/1fbf6c3b-8148-4077-b2c7-e97fd88d0cc3
+
+</td></tr>
+</table>
 
 ### RL Pipeline
 
