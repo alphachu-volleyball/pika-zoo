@@ -71,7 +71,6 @@ def play(
             p2_human = False
 
     ai_policies = {}
-    sb3_policies: dict[str, object] = {}  # SB3 models need obs updates
 
     for agent, spec, is_human in [("player_1", p1, p1_human), ("player_2", p2, p2_human)]:
         if is_human:
@@ -79,9 +78,7 @@ def play(
         if Path(spec).exists():
             from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
 
-            policy = SB3ModelPolicy(spec, agent=agent)
-            ai_policies[agent] = policy
-            sb3_policies[agent] = policy
+            ai_policies[agent] = SB3ModelPolicy(spec, agent=agent)
         else:
             ai_policies[agent] = get_ai(spec)
 
@@ -129,7 +126,7 @@ def play(
         from pika_zoo.wrappers import RecordGame
 
         e = RecordGame(e)
-    cached_obs, _ = e.reset(seed=seed)
+    e.reset(seed=seed)
 
     # Print match info
     print(f"Pikachu Volleyball — {p1_label} vs {p2_label} (first to {winning_score})")
@@ -185,13 +182,7 @@ def play(
             if p2_human:
                 actions["player_2"] = get_action_from_keys(keys, "player_2")
 
-        # Feed cached observations to SB3 models before step
-        if sb3_policies and cached_obs is not None:
-            for agent, policy in sb3_policies.items():
-                policy.set_observation(cached_obs[agent])
-
         obs, rewards, terms, truncs, infos = e.step(actions)
-        cached_obs = obs
 
         # Render + capture for recording
         if render_mode is not None:

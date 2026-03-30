@@ -14,6 +14,7 @@ from numpy.random import Generator
 from pika_zoo.engine.physics import Ball, Player
 from pika_zoo.engine.types import UserInput
 from pika_zoo.env.actions import ACTION_TABLE
+from pika_zoo.env.observations import build_observation
 from pika_zoo.wrappers.normalize_observation import OBS_LOW, OBS_RANGE
 from pika_zoo.wrappers.simplify_action import P1_MAP, P2_MAP
 from pika_zoo.wrappers.simplify_observation import _mirror
@@ -30,6 +31,8 @@ class SB3ModelPolicy:
     The model receives a processed observation and returns a discrete action.
     This adapter converts between the engine's Player/Ball state and the
     model's expected observation format.
+
+    Works both as an ai_policy in PikachuVolleyballEnv and with the play script.
 
     Args:
         model_path: Path to saved SB3 model (.zip).
@@ -69,11 +72,8 @@ class SB3ModelPolicy:
         self._observation_simplified = observation_simplified and agent == "player_2"
         self._observation_normalized = observation_normalized
         self._action_map: list[int] | None = _SIMPLIFIED_MAPS.get(agent) if action_simplified else None
-        self._last_obs = None
-
-    def set_observation(self, obs) -> None:
-        """Set the latest observation for this player (called by play script)."""
-        self._last_obs = obs
+        self._prev_power_hit: int = 0
+        self._opponent_prev_power_hit: int = 0
 
     def compute_action(
         self,
@@ -82,11 +82,9 @@ class SB3ModelPolicy:
         opponent: Player,
         rng: Generator,
     ) -> UserInput:
-        """Predict action from the model using the stored observation."""
-        if self._last_obs is None:
-            return UserInput()
+        """Predict action from the model using current game state."""
+        obs = build_observation(player, opponent, ball, self._prev_power_hit, self._opponent_prev_power_hit)
 
-        obs = self._last_obs
         if self._observation_simplified:
             obs = _mirror(obs)
         if self._observation_normalized:
@@ -105,7 +103,12 @@ class SB3ModelPolicy:
         user_input.x_direction = -int(keys[0]) + int(keys[1])
         user_input.y_direction = -int(keys[2]) + int(keys[3])
         user_input.power_hit = int(keys[4])
+
+        # Track power_hit for next frame's observation
+        self._prev_power_hit = int(keys[4])
+
         return user_input
 
     def reset(self, rng: Generator) -> None:
-        self._last_obs = None
+        self._prev_power_hit = 0
+        self._opponent_prev_power_hit = 0
