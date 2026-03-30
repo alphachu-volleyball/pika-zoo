@@ -55,4 +55,4 @@ def get_skin(name: str) -> str:
 # Auto-register builtins
 register_ai("builtin", BuiltinAI, skin="orange")
 register_ai("random", RandomAI, skin="lime")
-register_ai("duckll", DuckllAI, skin="red")
+register_ai("duckll", DuckllAI, skin="azure")
