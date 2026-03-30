@@ -10,6 +10,7 @@ from typing import Any
 from pika_zoo.ai.builtin import BuiltinAI
 from pika_zoo.ai.duckll import DuckllAI
 from pika_zoo.ai.random import RandomAI
+from pika_zoo.ai.stone import StoneAI
 
 DEFAULT_SKIN = "lime"
 
@@ -56,3 +57,4 @@ def get_skin(name: str) -> str:
 register_ai("builtin", BuiltinAI, skin="orange")
 register_ai("random", RandomAI, skin="lime")
 register_ai("duckll", DuckllAI, skin="azure")
+register_ai("stone", StoneAI, skin="gray")
