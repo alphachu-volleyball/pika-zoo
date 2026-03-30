@@ -167,9 +167,7 @@ class PikachuVolleyballEnv(ParallelEnv):
                 sound_dict[key] = False
 
         # Run physics (AI callbacks called after ball moves, before player moves)
-        is_ball_touching_ground = self._physics.run_engine_for_next_frame(
-            user_inputs, self._np_random, input_callbacks
-        )
+        is_ball_touching_ground = self._physics.run_engine_for_next_frame(user_inputs, self._np_random, input_callbacks)
 
         # Process scoring
         rewards: dict[str, float] = {"player_1": 0.0, "player_2": 0.0}
