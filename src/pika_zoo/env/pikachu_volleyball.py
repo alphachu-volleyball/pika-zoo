@@ -17,7 +17,7 @@ from pettingzoo import ParallelEnv
 from pika_zoo.ai.protocol import AIPolicy
 from pika_zoo.engine.constants import GROUND_HALF_WIDTH
 from pika_zoo.engine.physics import PikaPhysics
-from pika_zoo.engine.types import NoiseConfig
+from pika_zoo.engine.types import NoiseConfig, UserInput
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import build_observation, build_observation_space
 
@@ -135,20 +135,26 @@ class PikachuVolleyballEnv(ParallelEnv):
             for converter in self._action_converters.values():
                 converter.reset()
 
-        # Override actions for AI-controlled agents
-        players = {"player_1": self._physics.player1, "player_2": self._physics.player2}
-        opponents = {"player_1": self._physics.player2, "player_2": self._physics.player1}
-
+        # Build base user inputs and AI callbacks.
+        # AI callbacks are invoked inside the physics engine after ball moves,
+        # matching the original JS order where letComputerDecideUserInput is
+        # called inside processPlayerMovementAndSetPlayerPosition.
         user_inputs = []
+        input_callbacks: list = []
         for agent in self.possible_agents:
             if agent in self.ai_policies:
-                ai_input = self.ai_policies[agent].compute_action(
-                    players[agent], self._physics.ball, opponents[agent], self._np_random
-                )
-                user_inputs.append(ai_input)
+                policy = self.ai_policies[agent]
+                rng = self._np_random
+
+                def _make_cb(p: object, r: object) -> object:
+                    return lambda player, ball, opponent: p.compute_action(player, ball, opponent, r)
+
+                input_callbacks.append(_make_cb(policy, rng))
+                user_inputs.append(UserInput())
             else:
                 action = actions.get(agent, 0)
                 user_inputs.append(self._action_converters[agent].convert(action))
+                input_callbacks.append(None)
         self._last_user_inputs = user_inputs
 
         # Clear sound flags
@@ -160,8 +166,8 @@ class PikachuVolleyballEnv(ParallelEnv):
             for key in sound_dict:
                 sound_dict[key] = False
 
-        # Run physics
-        is_ball_touching_ground = self._physics.run_engine_for_next_frame(user_inputs, self._np_random)
+        # Run physics (AI callbacks called after ball moves, before player moves)
+        is_ball_touching_ground = self._physics.run_engine_for_next_frame(user_inputs, self._np_random, input_callbacks)
 
         # Process scoring
         rewards: dict[str, float] = {"player_1": 0.0, "player_2": 0.0}

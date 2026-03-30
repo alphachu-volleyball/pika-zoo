@@ -39,6 +39,8 @@ def play(
     p2_skin: str | None = None,
     p1_label: str | None = None,
     p2_label: str | None = None,
+    p1_keymap: str | None = None,
+    p2_keymap: str | None = None,
 ) -> None:
     """Run a Pikachu Volleyball match.
 
@@ -101,16 +103,19 @@ def play(
     else:
         render_mode = None
 
-    def _make_label(spec: str, is_human: bool) -> str:
+    def _make_label(agent: str, spec: str, is_human: bool) -> str:
         if is_human:
             return "human"
+        policy = ai_policies.get(agent)
+        if policy is not None and hasattr(policy, "label"):
+            return policy.label
         if Path(spec).exists():
             p = Path(spec)
             return p.parent.name if p.stem == "model" else p.stem
         return spec
 
-    p1_label = p1_label or _make_label(p1, p1_human)
-    p2_label = p2_label or _make_label(p2, p2_human)
+    p1_label = p1_label or _make_label("player_1", p1, p1_human)
+    p2_label = p2_label or _make_label("player_2", p2, p2_human)
 
     e = env(
         render_mode=render_mode,
@@ -130,10 +135,15 @@ def play(
 
     # Print match info
     print(f"Pikachu Volleyball — {p1_label} vs {p2_label} (first to {winning_score})")
-    if p1_human:
-        print("  P1: D(left) G(right) R(up) V(down) Z(power hit)")
-    if p2_human:
-        print("  P2: Arrow keys + Enter (power hit)")
+    if p1_human or p2_human:
+        from pika_zoo.scripts.keyboard import keymap_help
+
+        if p1_human:
+            km = p1_keymap or "original"
+            print(f"  P1: {keymap_help(km)}")
+        if p2_human:
+            km = p2_keymap or "arrows"
+            print(f"  P2: {keymap_help(km)}")
 
     # Init render if needed
     if render_mode is not None:
@@ -178,9 +188,9 @@ def play(
         if pygame is not None and (p1_human or p2_human):
             keys = pygame.key.get_pressed()
             if p1_human:
-                actions["player_1"] = get_action_from_keys(keys, "player_1")
+                actions["player_1"] = get_action_from_keys(keys, "player_1", keymap=p1_keymap)
             if p2_human:
-                actions["player_2"] = get_action_from_keys(keys, "player_2")
+                actions["player_2"] = get_action_from_keys(keys, "player_2", keymap=p2_keymap)
 
         obs, rewards, terms, truncs, infos = e.step(actions)
 
@@ -225,8 +235,18 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play, watch, or record Pikachu Volleyball")
     parser.add_argument("--winning-score", type=int, default=15, help="Score to win (default: 15)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
-    parser.add_argument("--p1", type=str, default="builtin", help="Player 1: AI name or 'human' (default: builtin)")
-    parser.add_argument("--p2", type=str, default="builtin", help="Player 2: AI name or 'human' (default: builtin)")
+    parser.add_argument(
+        "--p1",
+        type=str,
+        default="builtin",
+        help="Player 1: 'human', AI name, name:arg, or model path (available: builtin, duckll, duckll:N, random, stone)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--p2",
+        type=str,
+        default="builtin",
+        help="Player 2: 'human', AI name, name:arg, or model path (available: builtin, duckll, duckll:N, random, stone)",  # noqa: E501
+    )
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
@@ -234,10 +254,22 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N pixels")
     parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x velocity noise ±N")
     parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y velocity noise ±N")
-    parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
-    parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
+    parser.add_argument(
+        "--p1-skin",
+        type=str,
+        default=None,
+        help="P1 pikachu skin (available: azure, gray, lime, orange, white, yellow)",
+    )
+    parser.add_argument(
+        "--p2-skin",
+        type=str,
+        default=None,
+        help="P2 pikachu skin (available: azure, gray, lime, orange, white, yellow)",
+    )
     parser.add_argument("--p1-label", type=str, default=None, help="P1 display label (default: auto)")
     parser.add_argument("--p2-label", type=str, default=None, help="P2 display label (default: auto)")
+    parser.add_argument("--p1-keymap", type=str, default=None, help="P1 keymap (available: original, wasd, arrows)")
+    parser.add_argument("--p2-keymap", type=str, default=None, help="P2 keymap (available: original, wasd, arrows)")
     args = parser.parse_args(argv)
 
     play(
@@ -254,6 +286,8 @@ def main(argv: list[str] | None = None) -> None:
         p2_skin=args.p2_skin,
         p1_label=args.p1_label,
         p2_label=args.p2_label,
+        p1_keymap=args.p1_keymap,
+        p2_keymap=args.p2_keymap,
     )
 
 

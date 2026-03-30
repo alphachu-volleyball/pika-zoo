@@ -80,8 +80,10 @@ ConvertSingleAgent(e, agent="player_1", opponent_policy=BuiltinAI())
 
 Opponent can be:
 - `AIPolicy` instance (e.g. `BuiltinAI`) — injected into `env.ai_policies`
-- Callable `(obs → action)` — called each step
+- Callable `(obs → action)` — called each step with the previous step's observation
 - `None` — random actions
+
+> **Note**: Callable opponents receive the observation from the previous `step()`/`reset()`, not a fresh observation. This avoids accessing private env internals and works correctly with wrapped environments (e.g. `NormalizeObservation`).
 
 ## RecordGame
 
