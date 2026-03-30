@@ -317,7 +317,7 @@ class DuckllAI:
         self._is_player2: bool | None = None
         self._frame_counter = 0
         self._is_player2_serve: bool | None = None
-        self._true_rng = random.Random()
+        self._true_rng: random.Random | None = None
 
     @property
     def label(self) -> str:
@@ -327,7 +327,8 @@ class DuckllAI:
         return "duckll"
 
     def _true_rand(self) -> int:
-        """Non-deterministic random, matching JS Math.random() usage."""
+        """Random for attack pattern variety, seeded from env rng for reproducibility."""
+        assert self._true_rng is not None, "Call reset() before compute_action()"
         return self._true_rng.randint(0, 32767)
 
     def compute_action(
@@ -362,9 +363,10 @@ class DuckllAI:
         return user_input
 
     def reset(self, rng: Generator) -> None:
-        """Reset for a new round."""
+        """Reset for a new round. Seeds _true_rng from env rng for reproducibility."""
         self._state = _PlayerAIState()
         self._frame_counter = 0
+        self._true_rng = random.Random(int(rng.integers(0, 2**31)))
         if self._serve_machine is not None:
             self._serve_machine.initialize_for_new_round()
 
