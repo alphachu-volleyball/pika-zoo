@@ -228,8 +228,18 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play, watch, or record Pikachu Volleyball")
     parser.add_argument("--winning-score", type=int, default=15, help="Score to win (default: 15)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
-    parser.add_argument("--p1", type=str, default="builtin", help="Player 1: AI name or 'human' (default: builtin)")
-    parser.add_argument("--p2", type=str, default="builtin", help="Player 2: AI name or 'human' (default: builtin)")
+    parser.add_argument(
+        "--p1",
+        type=str,
+        default="builtin",
+        help="Player 1: 'human', AI name, name:arg, or model path (available: builtin, duckll, duckll:N, random, stone)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--p2",
+        type=str,
+        default="builtin",
+        help="Player 2: 'human', AI name, name:arg, or model path (available: builtin, duckll, duckll:N, random, stone)",  # noqa: E501
+    )
     parser.add_argument("--fps", type=int, default=25, help="Frames per second (default: 25)")
     parser.add_argument("--no-render", action="store_true", help="Disable pygame window (headless)")
     parser.add_argument("--record", type=str, default=None, metavar="FILE", help="Record to MP4 (requires ffmpeg)")
@@ -237,8 +247,18 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N pixels")
     parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x velocity noise ±N")
     parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y velocity noise ±N")
-    parser.add_argument("--p1-skin", type=str, default=None, help="P1 pikachu skin (default: auto from AI)")
-    parser.add_argument("--p2-skin", type=str, default=None, help="P2 pikachu skin (default: auto from AI)")
+    parser.add_argument(
+        "--p1-skin",
+        type=str,
+        default=None,
+        help="P1 pikachu skin (available: azure, gray, lime, orange, white, yellow)",
+    )
+    parser.add_argument(
+        "--p2-skin",
+        type=str,
+        default=None,
+        help="P2 pikachu skin (available: azure, gray, lime, orange, white, yellow)",
+    )
     parser.add_argument("--p1-label", type=str, default=None, help="P1 display label (default: auto)")
     parser.add_argument("--p2-label", type=str, default=None, help="P2 display label (default: auto)")
     args = parser.parse_args(argv)
