@@ -83,7 +83,15 @@ def play(
             from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
 
             model_path, config = _load_model_dir(spec_path)
-            ai_policies[agent] = SB3ModelPolicy(model_path, agent=agent, **config)
+            side = config.pop("side", None)
+            if side is None or side == "both":
+                side = agent
+            elif side != agent:
+                warnings.warn(
+                    f"Model was trained as {side} but placed at {agent}. Observation/action mapping may be incorrect.",
+                    stacklevel=2,
+                )
+            ai_policies[agent] = SB3ModelPolicy(model_path, agent=side, **config)
         elif spec_path.is_file():
             from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
 
@@ -243,8 +251,11 @@ def _load_model_dir(dir_path: Path) -> tuple[Path, dict]:
     if len(json_files) == 1:
         with open(json_files[0]) as f:
             raw = json.load(f)
-        # Only pass keys that SB3ModelPolicy accepts
-        valid_keys = {"deterministic", "action_simplified", "observation_simplified", "observation_normalized"}
+        import inspect
+
+        from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
+
+        valid_keys = set(inspect.signature(SB3ModelPolicy).parameters) - {"model_path", "agent"} | {"side"}
         config = {k: v for k, v in raw.items() if k in valid_keys}
 
     return model_path, config
