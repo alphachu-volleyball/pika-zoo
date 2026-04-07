@@ -61,14 +61,43 @@ Min-max scales all observation features to [0, 1] using known physical ranges. U
 
 ## RewardShaping
 
-Adds dense rewards on top of the sparse scoring signal (+1/-1):
+Adds dense rewards via pluggable reward channels. Each channel is a `(callable, coefficient)` pair.
 
-| Parameter | Default | Effect |
-|-----------|---------|--------|
-| `ball_position_coeff` | 0.01 | Bonus when ball is on opponent's side, penalty on own side |
-| `normal_state_coeff` | 0.0 | Small reward for staying in normal (ready) state |
+```python
+from pika_zoo.wrappers import RewardShaping, linear_ball_position, normal_state_bonus
 
-Shaped rewards are zero-sum across agents.
+# Channel-based
+RewardShaping(e, channels=[
+    (linear_ball_position, 0.01),
+    (normal_state_bonus, 0.005),
+])
+
+# Preset
+RewardShaping.from_preset(e, "default")
+```
+
+### Built-in Channels
+
+| Channel | Description | Zero-sum |
+|---------|-------------|----------|
+| `linear_ball_position` | Bonus when ball is on opponent's side | Yes |
+| `normal_state_bonus` | Reward for being in ready state | No |
+
+### Presets
+
+| Preset | Channels |
+|--------|----------|
+| `"default"` | `linear_ball_position` (0.01) |
+
+### Custom Channels
+
+A channel is any callable `(PikaPhysics) -> (p1_reward, p2_reward)`:
+
+```python
+def my_channel(physics):
+    # Access physics.player1, physics.player2, physics.ball
+    return (p1_reward, p2_reward)
+```
 
 ## ConvertSingleAgent
 
@@ -110,6 +139,7 @@ record.to_dict()                # JSON export
 | `simplify_action.py` | 18 → 13 relative-direction actions |
 | `simplify_observation.py` | Mirror player_2 x-axis observations |
 | `normalize_observation.py` | Min-max normalization to [0, 1] |
-| `reward_shaping.py` | Ball position + normal state rewards |
+| `reward_shaping.py` | Pluggable reward channels wrapper |
+| `reward_channels.py` | Built-in reward channel functions |
 | `convert_single_agent.py` | ParallelEnv → Gymnasium for SB3 |
 | `record_game.py` | Per-round frame recording + JSON export |
