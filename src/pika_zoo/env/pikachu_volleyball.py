@@ -108,6 +108,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         # Reset AI policies
         for agent_name, policy in self.ai_policies.items():
             policy.reset(self._np_random)
+        self._apply_initial_positions()
 
         observations = self._get_observations()
         infos = self._get_infos()
@@ -131,6 +132,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.player1.initialize_for_new_round(self._np_random)
             self._physics.player2.initialize_for_new_round(self._np_random)
             self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
+            self._apply_initial_positions()
             self._round_ended = False
             for converter in self._action_converters.values():
                 converter.reset()
@@ -231,6 +233,15 @@ class PikachuVolleyballEnv(ParallelEnv):
         if self._renderer is not None:
             self._renderer.close()
             self._renderer = None
+
+    def _apply_initial_positions(self) -> None:
+        """Apply custom initial x positions from AI policies that support it."""
+        for agent_name, policy in self.ai_policies.items():
+            if hasattr(policy, "get_initial_x"):
+                player = self._physics.player1 if agent_name == "player_1" else self._physics.player2
+                x = policy.get_initial_x(player.is_player2, self._np_random)
+                if x is not None:
+                    player.x = x
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         assert self._physics is not None
