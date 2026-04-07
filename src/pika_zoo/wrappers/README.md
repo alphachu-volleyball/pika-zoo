@@ -64,12 +64,12 @@ Min-max scales all observation features to [0, 1] using known physical ranges. U
 Adds dense rewards via pluggable reward channels. Each channel is a `(callable, coefficient)` pair.
 
 ```python
-from pika_zoo.wrappers import RewardShaping, linear_ball_position, normal_state_bonus
+from pika_zoo.wrappers import RewardShaping, linear_ball_position, quadrant_ball_position
 
 # Channel-based
 RewardShaping(e, channels=[
     (linear_ball_position, 0.01),
-    (normal_state_bonus, 0.005),
+    (quadrant_ball_position, 0.005),
 ])
 
 # Preset
@@ -80,8 +80,8 @@ RewardShaping.from_preset(e, "default")
 
 | Channel | Description | Zero-sum |
 |---------|-------------|----------|
-| `linear_ball_position` | Bonus when ball is on opponent's side | Yes |
-| `normal_state_bonus` | Reward for being in ready state | No |
+| `linear_ball_position` | Continuous reward based on ball x position | Yes |
+| `quadrant_ball_position()` | Zone-based reward (4 quadrants, configurable) | Configurable |
 
 ### Presets
 

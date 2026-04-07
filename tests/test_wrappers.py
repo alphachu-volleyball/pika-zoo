@@ -16,7 +16,7 @@ from pika_zoo.wrappers import (
     SimplifyAction,
     SimplifyObservation,
     linear_ball_position,
-    normal_state_bonus,
+    quadrant_ball_position,
 )
 from pika_zoo.wrappers.simplify_action import NUM_SIMPLIFIED_ACTIONS
 
@@ -297,7 +297,7 @@ class TestRewardShaping:
             e,
             channels=[
                 (linear_ball_position, 0.01),
-                (normal_state_bonus, 0.005),
+                (quadrant_ball_position(), 0.005),
             ],
         )
         wrapped.reset(seed=42)

@@ -32,7 +32,7 @@ class RewardShaping(BaseParallelWrapper):
 
         RewardShaping(env, channels=[
             (linear_ball_position, 0.01),
-            (normal_state_bonus, 0.005),
+            (quadrant_ball_position(), 0.005),
         ])
     """
 
