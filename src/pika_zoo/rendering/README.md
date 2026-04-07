@@ -27,7 +27,9 @@ Skin conventions:
 |------|----------|
 | yellow | Human player |
 | orange | Builtin AI |
+| azure | Duckll AI |
 | lime | Random AI |
+| gray | Stone AI |
 | white | RL model (SB3) |
 
 Each skin contains sprite sheets for the 6 player states + ball and background sprites.
