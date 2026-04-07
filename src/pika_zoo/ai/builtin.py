@@ -34,10 +34,17 @@ class BuiltinAI:
     """The original gorisanson AI with intentional bugs.
 
     Satisfies the AIPolicy protocol.
+
+    Args:
+        bugfix: If True, fix known prediction bugs (net side bounce,
+            boundary condition). Makes the AI stronger. Default False.
     """
 
+    def __init__(self, bugfix: bool = False) -> None:
+        self._bugfix = bugfix
+
     @staticmethod
-    def calculate_expected_landing_point_x(ball: Ball) -> None:
+    def calculate_expected_landing_point_x(ball: Ball, bugfix: bool = False) -> None:
         """Calculate x coordinate of expected landing point of the ball.
 
         Uses a copy-ball lookahead simulation. Writes to ball.expected_landing_point_x.
@@ -45,7 +52,7 @@ class BuiltinAI:
 
         Original: calculateExpectedLandingPointXFor in physics.js lines 738-788.
         """
-        _calculate_expected_landing_point_x(ball)
+        _calculate_expected_landing_point_x(ball, bugfix=bugfix)
 
     def compute_action(
         self,
@@ -58,9 +65,9 @@ class BuiltinAI:
 
         Original: letComputerDecideUserInput in physics.js lines 803-895.
         """
-        _calculate_expected_landing_point_x(ball)
+        _calculate_expected_landing_point_x(ball, bugfix=self._bugfix)
         user_input = UserInput()
-        _let_computer_decide_user_input(player, ball, opponent, user_input, rng)
+        _let_computer_decide_user_input(player, ball, opponent, user_input, rng, bugfix=self._bugfix)
         return user_input
 
     def reset(self, rng: Generator) -> None:
@@ -73,6 +80,7 @@ def _let_computer_decide_user_input(
     the_other_player: Player,
     user_input: UserInput,
     rng: Generator,
+    bugfix: bool = False,
 ) -> None:
     """Computer controls its player.
 
@@ -133,7 +141,9 @@ def _let_computer_decide_user_input(
             else:
                 user_input.x_direction = -1
         if abs(ball.x - player.x) < 48 and abs(ball.y - player.y) < 48:
-            will_input_power_hit = _decide_whether_input_power_hit(player, ball, the_other_player, user_input, rng)
+            will_input_power_hit = _decide_whether_input_power_hit(
+                player, ball, the_other_player, user_input, rng, bugfix=bugfix
+            )
             if will_input_power_hit:
                 user_input.power_hit = 1
                 if abs(the_other_player.x - player.x) < 80 and user_input.y_direction != -1:
@@ -146,6 +156,7 @@ def _decide_whether_input_power_hit(
     the_other_player: Player,
     user_input: UserInput,
     rng: Generator,
+    bugfix: bool = False,
 ) -> bool:
     """Decide whether to input power hit and set direction.
 
@@ -154,7 +165,7 @@ def _decide_whether_input_power_hit(
     if rand(rng) % 2 == 0:
         for x_direction in range(1, -1, -1):
             for y_direction in range(-1, 2):
-                expected_x = _expected_landing_point_x_when_power_hit(x_direction, y_direction, ball)
+                expected_x = _expected_landing_point_x_when_power_hit(x_direction, y_direction, ball, bugfix=bugfix)
                 if (
                     expected_x <= int(player.is_player2) * GROUND_HALF_WIDTH
                     or expected_x >= int(player.is_player2) * GROUND_WIDTH + GROUND_HALF_WIDTH
@@ -165,7 +176,7 @@ def _decide_whether_input_power_hit(
     else:
         for x_direction in range(1, -1, -1):
             for y_direction in range(1, -2, -1):
-                expected_x = _expected_landing_point_x_when_power_hit(x_direction, y_direction, ball)
+                expected_x = _expected_landing_point_x_when_power_hit(x_direction, y_direction, ball, bugfix=bugfix)
                 if (
                     expected_x <= int(player.is_player2) * GROUND_HALF_WIDTH
                     or expected_x >= int(player.is_player2) * GROUND_WIDTH + GROUND_HALF_WIDTH
@@ -176,7 +187,7 @@ def _decide_whether_input_power_hit(
     return False
 
 
-def _calculate_expected_landing_point_x(ball: Ball) -> None:
+def _calculate_expected_landing_point_x(ball: Ball, bugfix: bool = False) -> None:
     """Calculate x coordinate of expected landing point of the ball.
 
     Uses a copy-ball lookahead simulation. Moved from physics.py so that
@@ -203,7 +214,7 @@ def _calculate_expected_landing_point_x(ball: Ball) -> None:
         if abs(copy_x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_y > NET_PILLAR_TOP_TOP_Y_COORD:
             # NOTE: original uses < instead of <= for NET_PILLAR_TOP_BOTTOM_Y_COORD
             # (possible original author mistake, preserved for accuracy)
-            if copy_y < NET_PILLAR_TOP_BOTTOM_Y_COORD:
+            if copy_y <= NET_PILLAR_TOP_BOTTOM_Y_COORD if bugfix else copy_y < NET_PILLAR_TOP_BOTTOM_Y_COORD:
                 if copy_y_velocity > 0:
                     copy_y_velocity = -copy_y_velocity
             else:
@@ -225,6 +236,7 @@ def _expected_landing_point_x_when_power_hit(
     user_input_x_direction: int,
     user_input_y_direction: int,
     ball: Ball,
+    bugfix: bool = False,
 ) -> int:
     """Calculate expected landing point x when power hit.
 
@@ -257,8 +269,18 @@ def _expected_landing_point_x_when_power_hit(
         # This causes the AI to occasionally power-hit balls that bounce back
         # off the net pillar, because it doesn't anticipate the side bounce.
         if abs(copy_x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_y > NET_PILLAR_TOP_TOP_Y_COORD:
-            if copy_y_velocity > 0:
-                copy_y_velocity = -copy_y_velocity
+            if bugfix:
+                if copy_y < NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                    if copy_y_velocity > 0:
+                        copy_y_velocity = -copy_y_velocity
+                else:
+                    if copy_x < GROUND_HALF_WIDTH:
+                        copy_x_velocity = -abs(copy_x_velocity)
+                    else:
+                        copy_x_velocity = abs(copy_x_velocity)
+            else:
+                if copy_y_velocity > 0:
+                    copy_y_velocity = -copy_y_velocity
 
         copy_y = copy_y + copy_y_velocity
         if copy_y > BALL_TOUCHING_GROUND_Y_COORD or loop_counter >= INFINITE_LOOP_LIMIT:

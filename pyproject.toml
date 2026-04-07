@@ -1,12 +1,12 @@
 [project]
 name = "pika-zoo"
-version = "1.4.0"
+version = "1.5.0"
 description = "Python port of Pikachu Volleyball as an RL environment, with various utilities"
 readme = "README.md"
 authors = [
     { name = "namho kwon", email = "ootzk@kakao.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "gymnasium>=1.0.0",
     "pettingzoo>=1.24.0",
@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 play = "pika_zoo.scripts.play:main"
+benchmark = "pika_zoo.scripts.benchmark:main"
 
 [project.optional-dependencies]
 rendering = [
@@ -27,14 +28,14 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.10.12,<0.11.0"]
+requires = ["uv_build>=0.10.12,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]

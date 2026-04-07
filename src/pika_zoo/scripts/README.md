@@ -13,6 +13,7 @@ uv run play                                        # builtin vs builtin, windowe
 uv run play --p1 human                             # human vs builtin AI
 uv run play --p1 human --p2 human                  # human vs human
 uv run play --p1 model.zip --p2 builtin            # SB3 model vs builtin
+uv run play --p1 path/to/model_dir/ --p2 builtin  # model dir (auto-load .zip + .json config)
 uv run play --no-render --record match.mp4         # headless recording
 uv run play --record match.mp4                     # windowed + recording
 uv run play --no-render                            # headless (stats only)
@@ -22,7 +23,7 @@ uv run play --no-render                            # headless (stats only)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, or model path |
+| `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, model path (.zip), or model directory |
 | `--winning-score` | 15 | Score to win |
 | `--seed` | None | Random seed |
 | `--fps` | 25 | Frame rate |
@@ -53,10 +54,33 @@ uv run play --p1 human --p2 duckll --p1-keymap arrows    # P1 uses arrow keys
 uv run play --p1 human --p2 human --p1-keymap wasd --p2-keymap arrows
 ```
 
+## benchmark
+
+Headless throughput measurement. Registered as `uv run benchmark`.
+
+### Usage
+
+```bash
+uv run benchmark                                    # builtin vs builtin, 10000 frames
+uv run benchmark --p1 duckll --p2 duckll            # AI matchup comparison
+uv run benchmark --frames 50000                     # more frames for stable measurement
+uv run benchmark --warmup 500                       # adjust warmup period
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--p1`, `--p2` | `builtin` | Player AI spec (same as play) |
+| `--frames` | 10000 | Frames to measure |
+| `--warmup` | 1000 | Warmup frames excluded from measurement |
+| `--seed` | None | Random seed |
+
 ## Files
 
 | File | Description |
 |------|-------------|
 | `play.py` | `uv run play` — watch, play, or record matches |
+| `benchmark.py` | `uv run benchmark` — headless FPS measurement |
 | `keyboard.py` | Keyboard input handler (pygame key mapping) |
 | `video.py` | `FFmpegWriter` for MP4 recording |

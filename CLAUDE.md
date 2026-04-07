@@ -63,7 +63,7 @@ Key rules when working on the physics engine:
 
 ## Development Environment
 
-- **Python**: 3.10+
+- **Python**: 3.12+
 - **Package manager**: uv (`pyproject.toml` + `uv.lock`)
 - **Linter/Formatter**: ruff
 - **Testing**: pytest
@@ -83,7 +83,7 @@ uv run pytest            # Test
 
 ```toml
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]

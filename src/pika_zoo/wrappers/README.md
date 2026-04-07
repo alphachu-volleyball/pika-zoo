@@ -61,14 +61,53 @@ Min-max scales all observation features to [0, 1] using known physical ranges. U
 
 ## RewardShaping
 
-Adds dense rewards on top of the sparse scoring signal (+1/-1):
+Adds dense rewards via pluggable reward channels. Each channel is a `(RewardChannel, coefficient)` pair.
 
-| Parameter | Default | Effect |
-|-----------|---------|--------|
-| `ball_position_coeff` | 0.01 | Bonus when ball is on opponent's side, penalty on own side |
-| `normal_state_coeff` | 0.0 | Small reward for staying in normal (ready) state |
+```python
+from pika_zoo.wrappers import RewardShaping, LinearBallPosition, QuadrantBallPosition
 
-Shaped rewards are zero-sum across agents.
+# Channel-based
+RewardShaping(e, channels=[
+    (LinearBallPosition(), 0.01),
+    (QuadrantBallPosition(), 0.005),
+])
+
+# Preset
+RewardShaping.from_preset(e, "default")
+```
+
+### Built-in Channels
+
+| Channel | Description | Zero-sum |
+|---------|-------------|----------|
+| `LinearBallPosition()` | Continuous reward based on ball x position | Yes |
+| `QuadrantBallPosition()` | Zone-based reward (4 quadrants, configurable) | Configurable |
+| `OpponentDistance()` | Reward when ball is far from opponent on their side | Yes |
+| `BallDownwardVelocity()` | Reward for fast downward velocity (spike) | Yes |
+
+### Presets
+
+| Preset | Channels |
+|--------|----------|
+| `"default"` | `LinearBallPosition` (0.01) |
+
+### Custom Channels
+
+Extend `RewardChannel` and implement `__call__` and `__repr__`:
+
+```python
+from pika_zoo.wrappers import RewardChannel
+
+class MyChannel(RewardChannel):
+    def __call__(self, physics):
+        # Access physics.player1, physics.player2, physics.ball
+        return (p1_reward, p2_reward)
+
+    def __repr__(self):
+        return "MyChannel()"
+```
+
+`__repr__` is used for W&B config logging (`str(channel)`).
 
 ## ConvertSingleAgent
 
@@ -110,6 +149,7 @@ record.to_dict()                # JSON export
 | `simplify_action.py` | 18 → 13 relative-direction actions |
 | `simplify_observation.py` | Mirror player_2 x-axis observations |
 | `normalize_observation.py` | Min-max normalization to [0, 1] |
-| `reward_shaping.py` | Ball position + normal state rewards |
+| `reward_shaping.py` | Pluggable reward channels wrapper |
+| `reward_channels.py` | Built-in reward channel functions |
 | `convert_single_agent.py` | ParallelEnv → Gymnasium for SB3 |
 | `record_game.py` | Per-round frame recording + JSON export |

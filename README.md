@@ -1,7 +1,7 @@
 # pika-zoo
 
 [![Release](https://img.shields.io/github/v/release/alphachu-volleyball/pika-zoo?label=release&logo=github)](https://github.com/alphachu-volleyball/pika-zoo/releases)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 
 Python port of [Pikachu Volleyball Game](https://gorisanson.github.io/pikachu-volleyball/en/) as a [PettingZoo](https://pettingzoo.farama.org/) / [Gymnasium](https://gymnasium.farama.org/) reinforcement learning environment.
 
@@ -22,7 +22,7 @@ Python port of the reverse-engineered JS source code, wrapped with standard RL i
 - **Rendering**: Pygame-based visualization with player skins, score overlay, and headless MP4 recording
 - **Episode Recording**: Per-round statistics, frame-by-frame state snapshots, and JSON export for replay analysis
 - **AI Opponents**: BuiltinAI (original), DuckllAI (11 difficulty levels), StoneAI, RandomAI — pluggable via `AIPolicy` protocol
-- **CLI**: `uv run play` for human play, AI matchups, custom keymaps, and batch recording
+- **CLI**: `uv run play` for human play, AI matchups, custom keymaps, and batch recording; `uv run benchmark` for headless FPS measurement
 
 ### AI Opponents (vs Human)
 

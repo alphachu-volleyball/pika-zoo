@@ -91,9 +91,9 @@ class Player:
 
         self.initialize_for_new_round(rng)
 
-    def initialize_for_new_round(self, rng: Generator) -> None:
+    def initialize_for_new_round(self, rng: Generator, x: int | None = None) -> None:
         """Reset player state for a new round."""
-        self.x: int = 36 if not self.is_player2 else GROUND_WIDTH - 36
+        self.x: int = x if x is not None else (36 if not self.is_player2 else GROUND_WIDTH - 36)
         self.y: int = PLAYER_TOUCHING_GROUND_Y_COORD
         self.y_velocity: int = 0
         self.is_collision_with_ball_happened: bool = False
