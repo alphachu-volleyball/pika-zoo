@@ -1,39 +1,56 @@
 """
-Wrapper that adds shaped rewards based on ball position and player state.
+Wrapper that adds shaped rewards via pluggable reward channels.
 
-Combines two reward shaping strategies:
-1. Ball position reward: bonus/penalty based on which side of the court the ball is on
-2. Normal state reward: small reward for being in ready (normal) state when idle
+Each channel is a (callable, coefficient) pair. The callable receives PikaPhysics
+and returns (p1_reward, p2_reward), which is scaled by the coefficient.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
+
 from pettingzoo.utils import BaseParallelWrapper
 
-from pika_zoo.engine.constants import GROUND_HALF_WIDTH
+from pika_zoo.engine.physics import PikaPhysics
+from pika_zoo.wrappers.reward_channels import linear_ball_position
+
+RewardChannel = Callable[[PikaPhysics], tuple[float, float]]
+
+PRESETS: dict[str, list[tuple[RewardChannel, float]]] = {
+    "default": [(linear_ball_position, 0.01)],
+}
 
 
 class RewardShaping(BaseParallelWrapper):
-    """Add shaped rewards to the base environment.
+    """Add shaped rewards via pluggable channels.
 
     Args:
         env: The base PikachuVolleyballEnv.
-        ball_position_coeff: Reward coefficient for ball position.
-            Positive when ball is on opponent's side, negative on own side.
-            Applied per-frame (not just on scoring). Default 0.01.
-        normal_state_coeff: Reward for being in normal (idle) state when
-            no scoring happens. Encourages staying ready. Default 0.0 (off).
+        channels: List of (channel_fn, coefficient) pairs.
+
+    Example::
+
+        RewardShaping(env, channels=[
+            (linear_ball_position, 0.01),
+            (normal_state_bonus, 0.005),
+        ])
     """
 
     def __init__(
         self,
         env,
-        ball_position_coeff: float = 0.01,
-        normal_state_coeff: float = 0.0,
+        channels: Sequence[tuple[RewardChannel, float]] = (),
     ) -> None:
         super().__init__(env)
-        self._ball_position_coeff = ball_position_coeff
-        self._normal_state_coeff = normal_state_coeff
+        self._channels = list(channels)
+
+    @classmethod
+    def from_preset(cls, env, preset: str) -> RewardShaping:
+        """Create RewardShaping from a named preset."""
+        if preset not in PRESETS:
+            available = ", ".join(sorted(PRESETS.keys()))
+            raise KeyError(f"Unknown preset: {preset!r}. Available: {available}")
+        return cls(env, channels=PRESETS[preset])
 
     def step(self, actions):
         observations, rewards, terminations, truncations, infos = super().step(actions)
@@ -42,20 +59,9 @@ class RewardShaping(BaseParallelWrapper):
         if physics is None:
             return observations, rewards, terminations, truncations, infos
 
-        ball_x = physics.ball.x
-
-        # Ball position reward: positive when ball is on opponent's side
-        if self._ball_position_coeff != 0.0:
-            # Player 1: ball on right side (opponent) is good
-            p1_ball_bonus = (ball_x - GROUND_HALF_WIDTH) / GROUND_HALF_WIDTH * self._ball_position_coeff
-            rewards["player_1"] += p1_ball_bonus
-            rewards["player_2"] -= p1_ball_bonus
-
-        # Normal state reward: small bonus for being in ready state
-        if self._normal_state_coeff != 0.0 and rewards["player_1"] == 0.0:
-            if physics.player1.state == 0:
-                rewards["player_1"] += self._normal_state_coeff
-            if physics.player2.state == 0:
-                rewards["player_2"] += self._normal_state_coeff
+        for fn, coeff in self._channels:
+            p1_r, p2_r = fn(physics)
+            rewards["player_1"] += p1_r * coeff
+            rewards["player_2"] += p2_r * coeff
 
         return observations, rewards, terminations, truncations, infos
