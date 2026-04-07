@@ -80,3 +80,58 @@ class QuadrantBallPosition(RewardChannel):
 
     def __repr__(self) -> str:
         return f"QuadrantBallPosition(x_line={self.x_line}, y_line={self.y_line}, rewards={self.rewards})"
+
+
+class OpponentDistance(RewardChannel):
+    """Reward when ball is far from the opponent on their side of the court.
+
+    Only applies when the ball is on the opponent's side. The reward is
+    proportional to the x distance between the ball and the opponent,
+    normalized to [0, 1].
+
+    Zero-sum: one player's gain is the other's loss.
+    """
+
+    def __call__(self, physics: PikaPhysics) -> tuple[float, float]:
+        ball_x = physics.ball.x
+        if ball_x >= GROUND_HALF_WIDTH:
+            # Ball on P2's side → reward P1
+            dist = abs(ball_x - physics.player2.x) / GROUND_HALF_WIDTH
+            return (dist, -dist)
+        else:
+            # Ball on P1's side → reward P2
+            dist = abs(ball_x - physics.player1.x) / GROUND_HALF_WIDTH
+            return (-dist, dist)
+
+    def __repr__(self) -> str:
+        return "OpponentDistance()"
+
+
+class BallDownwardVelocity(RewardChannel):
+    """Reward for fast downward ball velocity on the opponent's side.
+
+    Only applies when the ball is on the opponent's side and moving
+    downward (y_velocity > 0). Normalized by max_velocity.
+
+    Encourages spike-like attacks.
+
+    Args:
+        max_velocity: Velocity for normalization (default: 30).
+    """
+
+    def __init__(self, max_velocity: float = 30.0) -> None:
+        self.max_velocity = max_velocity
+
+    def __call__(self, physics: PikaPhysics) -> tuple[float, float]:
+        ball = physics.ball
+        y_vel = ball.y_velocity
+        if y_vel <= 0:
+            return (0.0, 0.0)
+        reward = min(y_vel / self.max_velocity, 1.0)
+        if ball.x >= GROUND_HALF_WIDTH:
+            return (reward, -reward)
+        else:
+            return (-reward, reward)
+
+    def __repr__(self) -> str:
+        return f"BallDownwardVelocity(max_velocity={self.max_velocity})"
