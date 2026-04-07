@@ -18,6 +18,10 @@ The environment calls `compute_action()` each frame for agents registered in `ai
 
 Port of the original gorisanson AI. Includes intentional bugs from the original code (e.g., the net collision prediction mismatch). Registered as `"builtin"` with orange skin.
 
+With `bugfix=True`, fixes two known prediction bugs (net side bounce, boundary condition `<` vs `<=`), making the AI significantly stronger. Registered as `"builtin_bugfix"`.
+
+Strength: `builtin` < `builtin_bugfix` ≈ `duckll:0`
+
 Exposes `BuiltinAI.calculate_expected_landing_point_x(ball)` as a static method — a lookahead simulation that predicts where the ball will land. Other AI implementations can reuse this without instantiating BuiltinAI.
 
 ### DuckllAI
@@ -88,6 +92,7 @@ skin = get_skin("builtin")  # → "orange"
 | Name | Class | Skin |
 |------|-------|------|
 | `"builtin"` | `BuiltinAI` | orange |
+| `"builtin_bugfix"` | `BuiltinAI(bugfix=True)` | orange |
 | `"duckll"` | `DuckllAI` | azure |
 | `"random"` | `RandomAI` | lime |
 | `"stone"` | `StoneAI` | gray |
