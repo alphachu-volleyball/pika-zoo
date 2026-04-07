@@ -71,6 +71,7 @@ def get_skin(spec: str) -> str:
 
 # Auto-register builtins
 register_ai("builtin", BuiltinAI, skin="orange")
+register_ai("builtin_bugfix", lambda: BuiltinAI(bugfix=True), skin="orange")
 register_ai("random", RandomAI, skin="lime")
 register_ai("duckll", DuckllAI, skin="azure")
 register_ai("stone", StoneAI, skin="gray")
