@@ -63,7 +63,7 @@ Key rules when working on the physics engine:
 
 ## Development Environment
 
-- **Python**: 3.10+
+- **Python**: 3.12+
 - **Package manager**: uv (`pyproject.toml` + `uv.lock`)
 - **Linter/Formatter**: ruff
 - **Testing**: pytest
