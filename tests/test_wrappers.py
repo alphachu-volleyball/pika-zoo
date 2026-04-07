@@ -10,7 +10,9 @@ from pika_zoo.env import env
 from pika_zoo.env.observations import OBSERVATION_SIZE
 from pika_zoo.wrappers import (
     ConvertSingleAgent,
+    LinearBallPosition,
     NormalizeObservation,
+    QuadrantBallPosition,
     RecordGame,
     RewardShaping,
     SimplifyAction,
@@ -251,7 +253,7 @@ class TestRewardShaping:
     def test_ball_position_reward(self):
         """Shaped rewards should be non-zero even when no scoring."""
         e = env()
-        wrapped = RewardShaping(e, ball_position_coeff=0.01)
+        wrapped = RewardShaping(e, channels=[(LinearBallPosition(), 0.01)])
         wrapped.reset(seed=42)
         obs, rewards, _, _, infos = wrapped.step({"player_1": 0, "player_2": 0})
         # Ball starts on player_1's side (x=56 < 216), so player_1 gets negative bonus
@@ -261,7 +263,7 @@ class TestRewardShaping:
     def test_zero_sum_with_shaping(self):
         """Ball position rewards should remain zero-sum."""
         e = env()
-        wrapped = RewardShaping(e, ball_position_coeff=0.05)
+        wrapped = RewardShaping(e, channels=[(LinearBallPosition(), 0.05)])
         wrapped.reset(seed=42)
         for _ in range(50):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
@@ -269,15 +271,40 @@ class TestRewardShaping:
             if any(terms.values()):
                 break
 
-    def test_configurable_coefficients(self):
-        """Zero coefficient should produce no shaping."""
+    def test_empty_channels(self):
+        """No channels should produce no shaping."""
         e = env()
-        wrapped = RewardShaping(e, ball_position_coeff=0.0, normal_state_coeff=0.0)
+        wrapped = RewardShaping(e, channels=[])
         wrapped.reset(seed=42)
         obs, rewards, _, _, infos = wrapped.step({"player_1": 0, "player_2": 0})
         if not infos["player_1"]["round_ended"]:
             assert rewards["player_1"] == 0.0
             assert rewards["player_2"] == 0.0
+
+    def test_from_preset(self):
+        """Preset should create a valid RewardShaping."""
+        e = env()
+        wrapped = RewardShaping.from_preset(e, "default")
+        wrapped.reset(seed=42)
+        obs, rewards, _, _, infos = wrapped.step({"player_1": 0, "player_2": 0})
+        if not infos["player_1"]["round_ended"]:
+            assert rewards["player_1"] != 0.0
+
+    def test_multiple_channels(self):
+        """Multiple channels should combine additively."""
+        e = env()
+        wrapped = RewardShaping(
+            e,
+            channels=[
+                (LinearBallPosition(), 0.01),
+                (QuadrantBallPosition(), 0.005),
+            ],
+        )
+        wrapped.reset(seed=42)
+        obs, rewards, _, _, infos = wrapped.step({"player_1": 0, "player_2": 0})
+        if not infos["player_1"]["round_ended"]:
+            # Both channels contribute, so reward should be non-zero
+            assert rewards["player_1"] != 0.0
 
 
 class TestRecordGame:
