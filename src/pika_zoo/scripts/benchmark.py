@@ -66,7 +66,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--p1", type=str, default="builtin", help="Player 1 AI spec (default: builtin)")
     parser.add_argument("--p2", type=str, default="builtin", help="Player 2 AI spec (default: builtin)")
     parser.add_argument("--frames", type=int, default=10_000, help="Frames to measure (default: 10000)")
-    parser.add_argument("--warmup", type=int, default=1_000, help="Warmup frames, excluded from measurement (default: 1000)")  # noqa: E501
+    parser.add_argument(
+        "--warmup", type=int, default=1_000, help="Warmup frames, excluded from measurement (default: 1000)"
+    )  # noqa: E501
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     args = parser.parse_args(argv)
 
