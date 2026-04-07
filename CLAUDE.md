@@ -83,7 +83,7 @@ uv run pytest            # Test
 
 ```toml
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]

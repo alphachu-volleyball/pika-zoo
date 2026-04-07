@@ -29,7 +29,7 @@ Based on the reverse-engineered JS source code: [gorisanson/pikachu-volleyball](
 
 ### Player
 
-Two players: player 1 (left, starting x=36) and player 2 (right, starting x=396).
+Two players: player 1 (left, starting x=36) and player 2 (right, starting x=396). `initialize_for_new_round(rng, x=None)` accepts an optional custom x position.
 
 States: `NORMAL`(0), `JUMPING`(1), `JUMPING_POWER_HIT`(2), `DIVING`(3), `LYING_DOWN`(4), `WIN`(5), `LOSE`(6).
 
