@@ -1,23 +1,20 @@
 """
 Wrapper that adds shaped rewards via pluggable reward channels.
 
-Each channel is a (callable, coefficient) pair. The callable receives PikaPhysics
-and returns (p1_reward, p2_reward), which is scaled by the coefficient.
+Each channel is a (RewardChannel, coefficient) pair. The channel receives
+PikaPhysics and returns (p1_reward, p2_reward), which is scaled by the coefficient.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from pettingzoo.utils import BaseParallelWrapper
 
-from pika_zoo.engine.physics import PikaPhysics
-from pika_zoo.wrappers.reward_channels import linear_ball_position
-
-RewardChannel = Callable[[PikaPhysics], tuple[float, float]]
+from pika_zoo.wrappers.reward_channels import LinearBallPosition, RewardChannel
 
 PRESETS: dict[str, list[tuple[RewardChannel, float]]] = {
-    "default": [(linear_ball_position, 0.01)],
+    "default": [(LinearBallPosition(), 0.01)],
 }
 
 
@@ -26,13 +23,13 @@ class RewardShaping(BaseParallelWrapper):
 
     Args:
         env: The base PikachuVolleyballEnv.
-        channels: List of (channel_fn, coefficient) pairs.
+        channels: List of (RewardChannel, coefficient) pairs.
 
     Example::
 
         RewardShaping(env, channels=[
-            (linear_ball_position, 0.01),
-            (quadrant_ball_position(), 0.005),
+            (LinearBallPosition(), 0.01),
+            (QuadrantBallPosition(), 0.005),
         ])
     """
 
@@ -59,8 +56,8 @@ class RewardShaping(BaseParallelWrapper):
         if physics is None:
             return observations, rewards, terminations, truncations, infos
 
-        for fn, coeff in self._channels:
-            p1_r, p2_r = fn(physics)
+        for channel, coeff in self._channels:
+            p1_r, p2_r = channel(physics)
             rewards["player_1"] += p1_r * coeff
             rewards["player_2"] += p2_r * coeff
 

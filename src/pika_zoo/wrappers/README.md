@@ -61,15 +61,15 @@ Min-max scales all observation features to [0, 1] using known physical ranges. U
 
 ## RewardShaping
 
-Adds dense rewards via pluggable reward channels. Each channel is a `(callable, coefficient)` pair.
+Adds dense rewards via pluggable reward channels. Each channel is a `(RewardChannel, coefficient)` pair.
 
 ```python
-from pika_zoo.wrappers import RewardShaping, linear_ball_position, quadrant_ball_position
+from pika_zoo.wrappers import RewardShaping, LinearBallPosition, QuadrantBallPosition
 
 # Channel-based
 RewardShaping(e, channels=[
-    (linear_ball_position, 0.01),
-    (quadrant_ball_position, 0.005),
+    (LinearBallPosition(), 0.01),
+    (QuadrantBallPosition(), 0.005),
 ])
 
 # Preset
@@ -80,24 +80,32 @@ RewardShaping.from_preset(e, "default")
 
 | Channel | Description | Zero-sum |
 |---------|-------------|----------|
-| `linear_ball_position` | Continuous reward based on ball x position | Yes |
-| `quadrant_ball_position()` | Zone-based reward (4 quadrants, configurable) | Configurable |
+| `LinearBallPosition` | Continuous reward based on ball x position | Yes |
+| `QuadrantBallPosition()` | Zone-based reward (4 quadrants, configurable) | Configurable |
 
 ### Presets
 
 | Preset | Channels |
 |--------|----------|
-| `"default"` | `linear_ball_position` (0.01) |
+| `"default"` | `LinearBallPosition` (0.01) |
 
 ### Custom Channels
 
-A channel is any callable `(PikaPhysics) -> (p1_reward, p2_reward)`:
+Extend `RewardChannel` and implement `__call__` and `__repr__`:
 
 ```python
-def my_channel(physics):
-    # Access physics.player1, physics.player2, physics.ball
-    return (p1_reward, p2_reward)
+from pika_zoo.wrappers import RewardChannel
+
+class MyChannel(RewardChannel):
+    def __call__(self, physics):
+        # Access physics.player1, physics.player2, physics.ball
+        return (p1_reward, p2_reward)
+
+    def __repr__(self):
+        return "MyChannel()"
 ```
+
+`__repr__` is used for W&B config logging (`str(channel)`).
 
 ## ConvertSingleAgent
 

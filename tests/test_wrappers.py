@@ -10,13 +10,13 @@ from pika_zoo.env import env
 from pika_zoo.env.observations import OBSERVATION_SIZE
 from pika_zoo.wrappers import (
     ConvertSingleAgent,
+    LinearBallPosition,
     NormalizeObservation,
+    QuadrantBallPosition,
     RecordGame,
     RewardShaping,
     SimplifyAction,
     SimplifyObservation,
-    linear_ball_position,
-    quadrant_ball_position,
 )
 from pika_zoo.wrappers.simplify_action import NUM_SIMPLIFIED_ACTIONS
 
@@ -253,7 +253,7 @@ class TestRewardShaping:
     def test_ball_position_reward(self):
         """Shaped rewards should be non-zero even when no scoring."""
         e = env()
-        wrapped = RewardShaping(e, channels=[(linear_ball_position, 0.01)])
+        wrapped = RewardShaping(e, channels=[(LinearBallPosition(), 0.01)])
         wrapped.reset(seed=42)
         obs, rewards, _, _, infos = wrapped.step({"player_1": 0, "player_2": 0})
         # Ball starts on player_1's side (x=56 < 216), so player_1 gets negative bonus
@@ -263,7 +263,7 @@ class TestRewardShaping:
     def test_zero_sum_with_shaping(self):
         """Ball position rewards should remain zero-sum."""
         e = env()
-        wrapped = RewardShaping(e, channels=[(linear_ball_position, 0.05)])
+        wrapped = RewardShaping(e, channels=[(LinearBallPosition(), 0.05)])
         wrapped.reset(seed=42)
         for _ in range(50):
             obs, rewards, terms, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
@@ -296,8 +296,8 @@ class TestRewardShaping:
         wrapped = RewardShaping(
             e,
             channels=[
-                (linear_ball_position, 0.01),
-                (quadrant_ball_position(), 0.005),
+                (LinearBallPosition(), 0.01),
+                (QuadrantBallPosition(), 0.005),
             ],
         )
         wrapped.reset(seed=42)
