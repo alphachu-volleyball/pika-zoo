@@ -16,6 +16,7 @@ Controls (when render is on and player is human):
 from __future__ import annotations
 
 import argparse
+import json
 import warnings
 from pathlib import Path
 
@@ -77,7 +78,13 @@ def play(
     for agent, spec, is_human in [("player_1", p1, p1_human), ("player_2", p2, p2_human)]:
         if is_human:
             continue
-        if Path(spec).exists():
+        spec_path = Path(spec)
+        if spec_path.is_dir():
+            from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
+
+            model_path, config = _load_model_dir(spec_path)
+            ai_policies[agent] = SB3ModelPolicy(model_path, agent=agent, **config)
+        elif spec_path.is_file():
             from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
 
             ai_policies[agent] = SB3ModelPolicy(spec, agent=agent)
@@ -219,6 +226,28 @@ def play(
             print(f"Stats saved to {stats} ({record.num_frames} frames)")
 
     e.close()
+
+
+def _load_model_dir(dir_path: Path) -> tuple[Path, dict]:
+    """Load model.zip and config.json from a model directory.
+
+    Returns (model_path, config_dict). Config keys are passed as kwargs to SB3ModelPolicy.
+    """
+    zips = list(dir_path.glob("*.zip"))
+    if len(zips) != 1:
+        raise FileNotFoundError(f"Expected exactly one .zip file in {dir_path}, found {len(zips)}")
+    model_path = zips[0]
+
+    config = {}
+    json_files = list(dir_path.glob("*.json"))
+    if len(json_files) == 1:
+        with open(json_files[0]) as f:
+            raw = json.load(f)
+        # Only pass keys that SB3ModelPolicy accepts
+        valid_keys = {"deterministic", "action_simplified", "observation_simplified", "observation_normalized"}
+        config = {k: v for k, v in raw.items() if k in valid_keys}
+
+    return model_path, config
 
 
 def _build_noise(args: argparse.Namespace) -> NoiseConfig | None:
