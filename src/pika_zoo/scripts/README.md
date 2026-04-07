@@ -13,6 +13,7 @@ uv run play                                        # builtin vs builtin, windowe
 uv run play --p1 human                             # human vs builtin AI
 uv run play --p1 human --p2 human                  # human vs human
 uv run play --p1 model.zip --p2 builtin            # SB3 model vs builtin
+uv run play --p1 path/to/model_dir/ --p2 builtin  # model dir (auto-load .zip + .json config)
 uv run play --no-render --record match.mp4         # headless recording
 uv run play --record match.mp4                     # windowed + recording
 uv run play --no-render                            # headless (stats only)
@@ -22,7 +23,7 @@ uv run play --no-render                            # headless (stats only)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, or model path |
+| `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, model path (.zip), or model directory |
 | `--winning-score` | 15 | Score to win |
 | `--seed` | None | Random seed |
 | `--fps` | 25 | Frame rate |
