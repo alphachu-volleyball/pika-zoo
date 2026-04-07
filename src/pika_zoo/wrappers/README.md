@@ -80,8 +80,10 @@ RewardShaping.from_preset(e, "default")
 
 | Channel | Description | Zero-sum |
 |---------|-------------|----------|
-| `LinearBallPosition` | Continuous reward based on ball x position | Yes |
+| `LinearBallPosition()` | Continuous reward based on ball x position | Yes |
 | `QuadrantBallPosition()` | Zone-based reward (4 quadrants, configurable) | Configurable |
+| `OpponentDistance()` | Reward when ball is far from opponent on their side | Yes |
+| `BallDownwardVelocity()` | Reward for fast downward velocity (spike) | Yes |
 
 ### Presets
 
