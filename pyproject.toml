@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 play = "pika_zoo.scripts.play:main"
+benchmark = "pika_zoo.scripts.benchmark:main"
 
 [project.optional-dependencies]
 rendering = [
