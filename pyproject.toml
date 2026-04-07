@@ -1,6 +1,6 @@
 [project]
 name = "pika-zoo"
-version = "1.4.0"
+version = "1.5.0"
 description = "Python port of Pikachu Volleyball as an RL environment, with various utilities"
 readme = "README.md"
 authors = [
