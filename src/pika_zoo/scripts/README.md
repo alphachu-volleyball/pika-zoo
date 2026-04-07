@@ -53,10 +53,33 @@ uv run play --p1 human --p2 duckll --p1-keymap arrows    # P1 uses arrow keys
 uv run play --p1 human --p2 human --p1-keymap wasd --p2-keymap arrows
 ```
 
+## benchmark
+
+Headless throughput measurement. Registered as `uv run benchmark`.
+
+### Usage
+
+```bash
+uv run benchmark                                    # builtin vs builtin, 10000 frames
+uv run benchmark --p1 duckll --p2 duckll            # AI matchup comparison
+uv run benchmark --frames 50000                     # more frames for stable measurement
+uv run benchmark --warmup 500                       # adjust warmup period
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--p1`, `--p2` | `builtin` | Player AI spec (same as play) |
+| `--frames` | 10000 | Frames to measure |
+| `--warmup` | 1000 | Warmup frames excluded from measurement |
+| `--seed` | None | Random seed |
+
 ## Files
 
 | File | Description |
 |------|-------------|
 | `play.py` | `uv run play` — watch, play, or record matches |
+| `benchmark.py` | `uv run benchmark` — headless FPS measurement |
 | `keyboard.py` | Keyboard input handler (pygame key mapping) |
 | `video.py` | `FFmpegWriter` for MP4 recording |
