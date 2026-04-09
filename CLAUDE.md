@@ -22,12 +22,12 @@ Python port of the Pikachu Volleyball physics engine + PettingZoo/Gymnasium rein
 alphachu-volleyball/
 ├── pika-zoo (this repo)      ← RL environment + physics engine
 ├── training-center           ← PPO, Self-play, PFSP training
-├── world-tournament          ← Web demo (GitHub Pages)
+├── champions          ← Web demo (GitHub Pages)
 └── vs-recorder               ← Replay analysis (future)
 ```
 
 training-center → pika-zoo: Git tag pinning (`pika-zoo @ git+...@v0.1.0`)
-training-center → world-tournament: ONNX models (GitHub Releases)
+training-center → champions: ONNX models (GitHub Releases)
 
 ### Package Structure
 
