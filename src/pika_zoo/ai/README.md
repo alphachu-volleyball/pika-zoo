@@ -64,6 +64,7 @@ Adapter that wraps an SB3 model (PPO, etc.) as an `AIPolicy`. Used by the `play`
 SB3ModelPolicy(
     model_path="model.zip",
     agent="player_1",              # required: determines action/observation mapping
+    deterministic=True,            # greedy actions for standard evaluation
     action_simplified=True,        # remap 13 simplified actions → 18 raw actions
     observation_simplified=False,  # mirror player_2 x-axis (SimplifyObservation)
     observation_normalized=True,   # normalize observations to [0, 1]
@@ -73,12 +74,16 @@ SB3ModelPolicy(
 
 | Parameter | Default | Corresponding Wrapper |
 |-----------|---------|----------------------|
+| `deterministic` | `True` | Use greedy SB3 predictions for standard evaluation. When `False`, stochastic action sampling is seeded from the env reset RNG. |
 | `action_simplified` | `True` | `SimplifyAction` — remap model output (0–12) to raw actions (0–17) |
 | `observation_simplified` | `False` | `SimplifyObservation` — mirror player_2 x-axis (only applied for player_2) |
 | `observation_normalized` | `True` | `NormalizeObservation` — min-max scale to [0, 1] |
 | `frame_stack` | `1` | `FrameStack` — maintain an inference-time buffer and pass `(N, 35)` to the model |
 
 Processing order: simplify → normalize → frame stack (same as wrapper stacking order).
+
+Use `deterministic=True` for leaderboards, regression checks, and model comparison. Use `deterministic=False`
+only when intentionally evaluating the policy distribution; repeated games remain reproducible when their env seeds are recorded.
 
 ## Registry
 
