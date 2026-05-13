@@ -6,6 +6,7 @@ SB3 (stable-baselines3) is an optional dependency — only imported when used.
 
 from __future__ import annotations
 
+from collections import deque
 from pathlib import Path
 
 import numpy as np
@@ -43,6 +44,8 @@ class SB3ModelPolicy:
             using the same transform as SimplifyObservation (default False).
         observation_normalized: If True, normalize raw observations to [0, 1]
             using the same min-max scaling as NormalizeObservation (default True).
+        frame_stack: Number of processed observations to stack for models trained
+            with FrameStack. 1 disables stacking and preserves existing behavior.
         agent: Agent name ("player_1" or "player_2").
             Required when action_simplified=True or observation_simplified=True.
     """
@@ -54,12 +57,17 @@ class SB3ModelPolicy:
         action_simplified: bool = True,
         observation_simplified: bool = False,
         observation_normalized: bool = True,
+        frame_stack: int = 1,
         agent: str | None = None,
     ) -> None:
         if (action_simplified or observation_simplified) and agent is None:
             raise ValueError("agent must be specified when action_simplified=True or observation_simplified=True")
         if action_simplified and agent not in _SIMPLIFIED_MAPS:
             raise ValueError(f"Unknown agent: {agent!r}. Must be 'player_1' or 'player_2'.")
+        if not isinstance(frame_stack, int):
+            raise TypeError("frame_stack must be an int")
+        if frame_stack < 1:
+            raise ValueError("frame_stack must be >= 1")
         try:
             from stable_baselines3 import PPO
         except ImportError:
@@ -72,6 +80,9 @@ class SB3ModelPolicy:
         self._observation_simplified = observation_simplified and agent == "player_2"
         self._observation_normalized = observation_normalized
         self._action_map: list[int] | None = _SIMPLIFIED_MAPS.get(agent) if action_simplified else None
+        self._frame_stack = frame_stack
+        self._frame_buffer: deque[np.ndarray] | None = deque(maxlen=frame_stack) if frame_stack > 1 else None
+        self._sampling_rng: np.random.Generator | None = None
         self._prev_power_hit: int = 0
         self._opponent_prev_power_hit: int = 0
 
@@ -90,7 +101,10 @@ class SB3ModelPolicy:
         if self._observation_normalized:
             obs = np.clip((obs - OBS_LOW) / OBS_RANGE, 0.0, 1.0).astype(np.float32)
 
-        action, _ = self._model.predict(obs, deterministic=self._deterministic)
+        model_obs = self._stack_observation(obs)
+        if not self._deterministic and self._sampling_rng is None:
+            self._reset_sampling_rng(rng)
+        action, _ = self._predict_model(model_obs)
         action_idx = int(action)
 
         # Remap simplified (13) action to raw (18) action if needed
@@ -112,3 +126,36 @@ class SB3ModelPolicy:
     def reset(self, rng: Generator) -> None:
         self._prev_power_hit = 0
         self._opponent_prev_power_hit = 0
+        if self._deterministic:
+            self._sampling_rng = None
+        else:
+            self._reset_sampling_rng(rng)
+        if self._frame_buffer is not None:
+            self._frame_buffer.clear()
+
+    def _reset_sampling_rng(self, rng: Generator) -> None:
+        seed = int(rng.integers(0, 2**31))
+        self._sampling_rng = np.random.default_rng(seed)
+
+    def _predict_model(self, model_obs: np.ndarray) -> tuple[np.ndarray | int, object]:
+        if self._deterministic:
+            return self._model.predict(model_obs, deterministic=True)
+
+        assert self._sampling_rng is not None
+        seed = int(self._sampling_rng.integers(0, 2**31))
+
+        import torch
+
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            return self._model.predict(model_obs, deterministic=False)
+
+    def _stack_observation(self, obs: np.ndarray) -> np.ndarray:
+        if self._frame_buffer is None:
+            return obs
+
+        self._frame_buffer.append(obs.copy())
+        frames = list(self._frame_buffer)
+        if len(frames) < self._frame_stack:
+            frames = [frames[0]] * (self._frame_stack - len(frames)) + frames
+        return np.stack(frames, axis=0).astype(obs.dtype, copy=False)

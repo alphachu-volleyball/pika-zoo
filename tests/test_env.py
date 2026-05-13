@@ -3,6 +3,7 @@
 import pytest
 
 from pika_zoo.ai.builtin import BuiltinAI
+from pika_zoo.engine.types import UserInput
 from pika_zoo.env import env
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import OBSERVATION_SIZE
@@ -149,6 +150,35 @@ class TestPikachuVolleyballEnv:
                 break
 
         assert game_ended
+
+    def test_ai_policy_resets_each_round(self):
+        """AI policies should reset when the env starts a new round."""
+
+        class CountingAI:
+            def __init__(self):
+                self.reset_count = 0
+
+            def compute_action(self, player, ball, opponent, rng):
+                return UserInput()
+
+            def reset(self, rng):
+                self.reset_count += 1
+
+        ai = CountingAI()
+        e = env(ai_policies={"player_2": ai}, winning_score=2)
+        e.reset(seed=42)
+        assert ai.reset_count == 1
+
+        for _ in range(3000):
+            _, _, terms, _, infos = e.step({"player_1": 0, "player_2": 0})
+            if infos["player_1"]["round_ended"]:
+                assert not any(terms.values())
+                break
+        else:
+            pytest.fail("Round should end within 3000 frames")
+
+        e.step({"player_1": 0, "player_2": 0})
+        assert ai.reset_count == 2
 
     def test_agent_centric_observations(self):
         """Each agent should see itself first in the observation."""
