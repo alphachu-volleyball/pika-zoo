@@ -10,6 +10,7 @@ from pika_zoo.env import env
 from pika_zoo.env.observations import OBSERVATION_SIZE
 from pika_zoo.wrappers import (
     ConvertSingleAgent,
+    FrameStack,
     LinearBallPosition,
     NormalizeObservation,
     QuadrantBallPosition,
@@ -247,6 +248,53 @@ class TestNormalizeObservation:
         for agent_obs in obs.values():
             assert np.all(agent_obs >= 0.0)
             assert np.all(agent_obs <= 1.0)
+
+
+class TestFrameStack:
+    def test_obs_space_shape(self):
+        e = env()
+        wrapped = FrameStack(e, n_frames=4)
+        space = wrapped.observation_space("player_1")
+        assert space.shape == (4, OBSERVATION_SIZE)
+        assert space.dtype == np.float32
+
+    def test_reset_repeats_initial_observation(self):
+        raw_env = env()
+        raw_obs, _ = raw_env.reset(seed=42)
+
+        wrapped_env = env()
+        wrapped = FrameStack(wrapped_env, n_frames=4)
+        obs, _ = wrapped.reset(seed=42)
+
+        assert obs["player_1"].shape == (4, OBSERVATION_SIZE)
+        for i in range(4):
+            np.testing.assert_array_equal(obs["player_1"][i], raw_obs["player_1"])
+
+    def test_step_appends_newest_observation(self):
+        raw_env = env()
+        initial_obs, _ = raw_env.reset(seed=42)
+        next_obs, _, _, _, _ = raw_env.step({"player_1": 0, "player_2": 0})
+
+        wrapped_env = env()
+        wrapped = FrameStack(wrapped_env, n_frames=4)
+        wrapped.reset(seed=42)
+        obs, _, _, _, _ = wrapped.step({"player_1": 0, "player_2": 0})
+
+        np.testing.assert_array_equal(obs["player_1"][0], initial_obs["player_1"])
+        np.testing.assert_array_equal(obs["player_1"][1], initial_obs["player_1"])
+        np.testing.assert_array_equal(obs["player_1"][2], initial_obs["player_1"])
+        np.testing.assert_array_equal(obs["player_1"][3], next_obs["player_1"])
+
+    def test_with_normalized_observations(self):
+        e = FrameStack(NormalizeObservation(env()), n_frames=4)
+        obs, _ = e.reset(seed=42)
+        assert obs["player_1"].shape == (4, OBSERVATION_SIZE)
+        assert np.all(obs["player_1"] >= 0.0)
+        assert np.all(obs["player_1"] <= 1.0)
+
+    def test_invalid_n_frames(self):
+        with pytest.raises(ValueError, match="n_frames"):
+            FrameStack(env(), n_frames=0)
 
 
 class TestRewardShaping:

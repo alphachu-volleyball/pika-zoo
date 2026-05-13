@@ -9,11 +9,13 @@ e = env(winning_score=15)
 e = SimplifyAction(e)              # 1. action space reduction
 e = SimplifyObservation(e)         # 2. x-axis mirroring (optional)
 e = NormalizeObservation(e)        # 3. observation scaling
-e = RewardShaping(e)               # 4. shaped rewards (optional)
-e = ConvertSingleAgent(e)          # 5. multi-agent → single-agent
+e = FrameStack(e, n_frames=4)      # 4. temporal stacking (optional)
+e = RewardShaping(e)               # 5. shaped rewards (optional)
+e = ConvertSingleAgent(e)          # 6. multi-agent → single-agent
 ```
 
 `SimplifyObservation` must come before `NormalizeObservation` — mirroring operates on raw coordinates.
+`FrameStack` should come after observation transforms so each stored frame has the model-ready format.
 
 ## SimplifyAction
 
@@ -58,6 +60,21 @@ All other features (y positions, y velocities, states, etc.) are left unchanged.
 ## NormalizeObservation
 
 Min-max scales all observation features to [0, 1] using known physical ranges. Uses fixed bounds — no running statistics.
+
+## FrameStack
+
+Stacks the most recent N observations along a leading time axis:
+
+```python
+from pika_zoo.wrappers import FrameStack
+
+e = FrameStack(e, n_frames=4)
+# obs shape: (35,) -> (4, 35)
+```
+
+On `reset()`, the initial observation is repeated N times so the observation shape is stable from the first step.
+On each `step()`, the newest observation is appended and the oldest frame is dropped. The stack is not flattened; MLP
+policies can flatten internally while recurrent or convolutional policies can keep the time dimension.
 
 ## RewardShaping
 
@@ -149,6 +166,7 @@ record.to_dict()                # JSON export
 | `simplify_action.py` | 18 → 13 relative-direction actions |
 | `simplify_observation.py` | Mirror player_2 x-axis observations |
 | `normalize_observation.py` | Min-max normalization to [0, 1] |
+| `frame_stack.py` | Stack recent observations as `(n_frames, 35)` |
 | `reward_shaping.py` | Pluggable reward channels wrapper |
 | `reward_channels.py` | Built-in reward channel functions |
 | `convert_single_agent.py` | ParallelEnv → Gymnasium for SB3 |

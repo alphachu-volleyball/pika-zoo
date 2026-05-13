@@ -67,6 +67,7 @@ SB3ModelPolicy(
     action_simplified=True,        # remap 13 simplified actions → 18 raw actions
     observation_simplified=False,  # mirror player_2 x-axis (SimplifyObservation)
     observation_normalized=True,   # normalize observations to [0, 1]
+    frame_stack=4,                 # stack recent frames for models trained with FrameStack
 )
 ```
 
@@ -75,8 +76,9 @@ SB3ModelPolicy(
 | `action_simplified` | `True` | `SimplifyAction` — remap model output (0–12) to raw actions (0–17) |
 | `observation_simplified` | `False` | `SimplifyObservation` — mirror player_2 x-axis (only applied for player_2) |
 | `observation_normalized` | `True` | `NormalizeObservation` — min-max scale to [0, 1] |
+| `frame_stack` | `1` | `FrameStack` — maintain an inference-time buffer and pass `(N, 35)` to the model |
 
-Processing order: simplify → normalize (same as wrapper stacking order).
+Processing order: simplify → normalize → frame stack (same as wrapper stacking order).
 
 ## Registry
 
