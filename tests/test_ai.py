@@ -141,6 +141,60 @@ class TestSB3ModelPolicy:
         with pytest.raises(ValueError, match="frame_stack"):
             SB3ModelPolicy(model_path, agent="player_1", frame_stack=0)
 
+    def test_deterministic_reset_does_not_consume_rng(self, monkeypatch, tmp_path):
+        _install_fake_sb3(monkeypatch)
+
+        from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
+
+        model_path = tmp_path / "model.zip"
+        model_path.write_bytes(b"fake")
+        policy = SB3ModelPolicy(model_path, agent="player_1", deterministic=True)
+        rng = np.random.default_rng(42)
+        expected_rng = np.random.default_rng(42)
+
+        policy.reset(rng)
+
+        assert int(rng.integers(0, 2**31)) == int(expected_rng.integers(0, 2**31))
+
+    def test_stochastic_sampling_uses_reset_rng(self, monkeypatch, tmp_path):
+        fake_model = _install_fake_sb3(monkeypatch)
+        fake_torch = _install_fake_torch(monkeypatch)
+
+        from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
+
+        model_path = tmp_path / "model.zip"
+        model_path.write_bytes(b"fake")
+        policy = SB3ModelPolicy(model_path, agent="player_1", deterministic=False)
+        physics = PikaPhysics(np.random.default_rng(999))
+
+        def sampled_torch_seeds(reset_seed, global_torch_seed):
+            fake_model.sampling_seeds.clear()
+            fake_torch.manual_seed(global_torch_seed)
+            policy.reset(np.random.default_rng(reset_seed))
+            for _ in range(8):
+                policy.compute_action(physics.player1, physics.ball, physics.player2, np.random.default_rng(123))
+            return list(fake_model.sampling_seeds)
+
+        assert sampled_torch_seeds(42, 100) == sampled_torch_seeds(42, 200)
+        assert sampled_torch_seeds(42, 100) != sampled_torch_seeds(43, 100)
+
+    def test_stochastic_sampling_restores_torch_seed(self, monkeypatch, tmp_path):
+        _install_fake_sb3(monkeypatch)
+        fake_torch = _install_fake_torch(monkeypatch)
+
+        from pika_zoo.ai.sb3_adapter import SB3ModelPolicy
+
+        model_path = tmp_path / "model.zip"
+        model_path.write_bytes(b"fake")
+        policy = SB3ModelPolicy(model_path, agent="player_1", deterministic=False)
+        policy.reset(np.random.default_rng(42))
+        fake_torch.manual_seed(777)
+
+        physics = PikaPhysics(np.random.default_rng(999))
+        policy.compute_action(physics.player1, physics.ball, physics.player2, np.random.default_rng(123))
+
+        assert fake_torch.current_seed == 777
+
 
 class TestModelConfig:
     def test_load_model_dir_accepts_frame_stack(self, tmp_path):
@@ -163,9 +217,15 @@ class TestModelConfig:
 class _FakeModel:
     def __init__(self) -> None:
         self.observations = []
+        self.sampling_seeds = []
 
     def predict(self, obs, deterministic=True):
         self.observations.append(obs.copy())
+        if not deterministic:
+            torch = sys.modules.get("torch")
+            seed = getattr(torch, "current_seed", 0)
+            self.sampling_seeds.append(seed)
+            return seed % 13, None
         return 0, None
 
 
@@ -181,6 +241,36 @@ def _install_fake_sb3(monkeypatch):
     module.PPO = FakePPO
     monkeypatch.setitem(sys.modules, "stable_baselines3", module)
     return fake_model
+
+
+def _install_fake_torch(monkeypatch):
+    module = types.ModuleType("torch")
+    module.current_seed = 0
+
+    def manual_seed(seed):
+        module.current_seed = int(seed)
+
+    class _ForkRng:
+        def __init__(self):
+            self._previous_seed = 0
+
+        def __enter__(self):
+            self._previous_seed = module.current_seed
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            module.current_seed = self._previous_seed
+            return False
+
+    class _Random:
+        @staticmethod
+        def fork_rng(devices=None):
+            return _ForkRng()
+
+    module.manual_seed = manual_seed
+    module.random = _Random()
+    monkeypatch.setitem(sys.modules, "torch", module)
+    return module
 
 
 def _ball_x_delta() -> np.ndarray:
