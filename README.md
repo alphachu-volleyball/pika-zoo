@@ -18,7 +18,7 @@ Python port of the reverse-engineered JS source code, wrapped with standard RL i
 - **Physics Engine**: Accurately reproduces the original ball trajectory, character movement, net collision, and scoring logic
 - **PettingZoo**: Two-player multi-agent environment (`ParallelEnv`)
 - **Gymnasium**: Single-agent wrapper (opponent fixed with a built-in policy)
-- **Wrappers**: Action/observation simplification, normalization, reward shaping — all opt-in and composable
+- **Wrappers**: Action/observation simplification, normalization, frame stacking, reward shaping — all opt-in and composable
 - **Rendering**: Pygame-based visualization with player skins, score overlay, and headless MP4 recording
 - **Episode Recording**: Per-round statistics, frame-by-frame state snapshots, and JSON export for replay analysis
 - **AI Opponents**: BuiltinAI (original), DuckllAI (11 difficulty levels), StoneAI, RandomAI — pluggable via `AIPolicy` protocol
@@ -98,12 +98,13 @@ uv run ruff check .
 
 ```python
 from pika_zoo.env import env
-from pika_zoo.wrappers import SimplifyAction, SimplifyObservation, NormalizeObservation, ConvertSingleAgent
+from pika_zoo.wrappers import FrameStack, SimplifyAction, SimplifyObservation, NormalizeObservation, ConvertSingleAgent
 
 e = env(winning_score=15)
 e = SimplifyAction(e)              # 18 → 13 relative actions
 e = SimplifyObservation(e)         # mirror player_2 x-axis (optional)
 e = NormalizeObservation(e)        # scale observations to [0, 1]
+e = FrameStack(e, n_frames=4)      # stack recent frames as (4, 35) (optional)
 e = ConvertSingleAgent(e)          # PettingZoo → Gymnasium for SB3
 ```
 

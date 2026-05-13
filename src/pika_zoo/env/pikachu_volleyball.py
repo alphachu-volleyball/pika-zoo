@@ -134,6 +134,8 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
             self._apply_initial_positions()
             self._round_ended = False
+            for policy in self.ai_policies.values():
+                policy.reset(self._np_random)
             for converter in self._action_converters.values():
                 converter.reset()
 
