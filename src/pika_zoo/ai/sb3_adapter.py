@@ -82,6 +82,7 @@ class SB3ModelPolicy:
         self._action_map: list[int] | None = _SIMPLIFIED_MAPS.get(agent) if action_simplified else None
         self._frame_stack = frame_stack
         self._frame_buffer: deque[np.ndarray] | None = deque(maxlen=frame_stack) if frame_stack > 1 else None
+        self._sampling_rng: np.random.Generator | None = None
         self._prev_power_hit: int = 0
         self._opponent_prev_power_hit: int = 0
 
@@ -101,7 +102,9 @@ class SB3ModelPolicy:
             obs = np.clip((obs - OBS_LOW) / OBS_RANGE, 0.0, 1.0).astype(np.float32)
 
         model_obs = self._stack_observation(obs)
-        action, _ = self._model.predict(model_obs, deterministic=self._deterministic)
+        if not self._deterministic and self._sampling_rng is None:
+            self._reset_sampling_rng(rng)
+        action, _ = self._predict_model(model_obs)
         action_idx = int(action)
 
         # Remap simplified (13) action to raw (18) action if needed
@@ -123,8 +126,29 @@ class SB3ModelPolicy:
     def reset(self, rng: Generator) -> None:
         self._prev_power_hit = 0
         self._opponent_prev_power_hit = 0
+        if self._deterministic:
+            self._sampling_rng = None
+        else:
+            self._reset_sampling_rng(rng)
         if self._frame_buffer is not None:
             self._frame_buffer.clear()
+
+    def _reset_sampling_rng(self, rng: Generator) -> None:
+        seed = int(rng.integers(0, 2**31))
+        self._sampling_rng = np.random.default_rng(seed)
+
+    def _predict_model(self, model_obs: np.ndarray) -> tuple[np.ndarray | int, object]:
+        if self._deterministic:
+            return self._model.predict(model_obs, deterministic=True)
+
+        assert self._sampling_rng is not None
+        seed = int(self._sampling_rng.integers(0, 2**31))
+
+        import torch
+
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            return self._model.predict(model_obs, deterministic=False)
 
     def _stack_observation(self, obs: np.ndarray) -> np.ndarray:
         if self._frame_buffer is None:
