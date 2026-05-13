@@ -27,6 +27,7 @@ Supported config keys are passed to `SB3ModelPolicy`:
 ```json
 {
   "side": "both",
+  "deterministic": true,
   "action_simplified": true,
   "observation_simplified": false,
   "observation_normalized": true,
@@ -36,6 +37,9 @@ Supported config keys are passed to `SB3ModelPolicy`:
 
 `frame_stack` defaults to `1` for existing models. Values greater than 1 make the policy keep its own
 inference-time frame buffer and pass `(N, 35)` observations to the SB3 model.
+
+`deterministic` defaults to `true` for standard evaluation. Set it to `false` only for stochastic policy
+sampling experiments; the sampling sequence is controlled by `--seed`.
 
 ### Options
 

@@ -119,7 +119,7 @@ See [engine/README.md](src/pika_zoo/engine/README.md#left-right-asymmetry) for t
 
 ## Development
 
-See [CLAUDE.md](CLAUDE.md) for the full development guide.
+See [AGENTS.md](AGENTS.md) for the full development guide. [CLAUDE.md](CLAUDE.md) remains as a Claude Code compatibility shim.
 
 ### Branch Workflow
 
