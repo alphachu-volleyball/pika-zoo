@@ -296,6 +296,24 @@ class TestFrameStack:
         with pytest.raises(ValueError, match="n_frames"):
             FrameStack(env(), n_frames=0)
 
+    def test_resets_stack_after_round_end(self):
+        e = FrameStack(env(winning_score=2), n_frames=4)
+        e.reset(seed=42)
+
+        round_ended = False
+        for _ in range(3000):
+            _, _, terms, _, infos = e.step({"player_1": 0, "player_2": 0})
+            if infos["player_1"]["round_ended"]:
+                round_ended = True
+                assert not any(terms.values())
+                break
+
+        assert round_ended
+        obs, _, _, _, infos = e.step({"player_1": 0, "player_2": 0})
+        assert not infos["player_1"]["round_ended"]
+        for i in range(3):
+            np.testing.assert_array_equal(obs["player_1"][i], obs["player_1"][i + 1])
+
 
 class TestRewardShaping:
     def test_ball_position_reward(self):

@@ -73,8 +73,10 @@ e = FrameStack(e, n_frames=4)
 ```
 
 On `reset()`, the initial observation is repeated N times so the observation shape is stable from the first step.
-On each `step()`, the newest observation is appended and the oldest frame is dropped. The stack is not flattened; MLP
-policies can flatten internally while recurrent or convolutional policies can keep the time dimension.
+On each `step()`, the newest observation is appended and the oldest frame is dropped. After a scoring frame, the next
+round's first returned observation resets the stack to repeated copies of that new-round observation, preventing the
+previous round's terminal state from leaking into the next rally. The stack is not flattened; MLP policies can flatten
+internally while recurrent or convolutional policies can keep the time dimension.
 
 ## RewardShaping
 

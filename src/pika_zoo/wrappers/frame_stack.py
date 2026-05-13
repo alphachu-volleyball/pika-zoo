@@ -25,6 +25,7 @@ class FrameStack(BaseParallelWrapper):
             raise ValueError("n_frames must be >= 1")
         self.n_frames = n_frames
         self._buffers: dict[str, deque[np.ndarray]] = {}
+        self._reset_next_step = False
 
     def observation_space(self, agent: str) -> spaces.Box:
         base_space = self.env.observation_space(agent)
@@ -37,18 +38,33 @@ class FrameStack(BaseParallelWrapper):
     def reset(self, seed=None, options=None):
         observations, infos = super().reset(seed=seed, options=options)
         self._buffers = {}
+        self._reset_next_step = False
         for agent, obs in observations.items():
             self._buffers[agent] = deque([obs.copy() for _ in range(self.n_frames)], maxlen=self.n_frames)
         return self._stack_observations(observations), infos
 
     def step(self, actions):
         observations, rewards, terminations, truncations, infos = super().step(actions)
-        for agent, obs in observations.items():
-            if agent not in self._buffers:
-                self._buffers[agent] = deque([obs.copy() for _ in range(self.n_frames)], maxlen=self.n_frames)
-            else:
-                self._buffers[agent].append(obs.copy())
-        return self._stack_observations(observations), rewards, terminations, truncations, infos
+        if self._reset_next_step:
+            self._reset_buffers(observations)
+            self._reset_next_step = False
+        else:
+            for agent, obs in observations.items():
+                if agent not in self._buffers:
+                    self._buffers[agent] = deque([obs.copy() for _ in range(self.n_frames)], maxlen=self.n_frames)
+                else:
+                    self._buffers[agent].append(obs.copy())
+
+        stacked = self._stack_observations(observations)
+        if any(info.get("round_ended", False) for info in infos.values()) and not any(terminations.values()):
+            self._reset_next_step = True
+        return stacked, rewards, terminations, truncations, infos
+
+    def _reset_buffers(self, observations: dict[str, np.ndarray]) -> None:
+        self._buffers = {
+            agent: deque([obs.copy() for _ in range(self.n_frames)], maxlen=self.n_frames)
+            for agent, obs in observations.items()
+        }
 
     def _stack_observations(self, observations: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         return {agent: np.stack(list(self._buffers[agent]), axis=0) for agent in observations}
