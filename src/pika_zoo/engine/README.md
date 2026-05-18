@@ -36,6 +36,7 @@ States: `NORMAL`(0), `JUMPING`(1), `JUMPING_POWER_HIT`(2), `DIVING`(3), `LYING_D
 ### Ball
 
 Starts at x=56 (player 1 serve) or x=376 (player 2 serve), y=0, y_velocity=1 (falling).
+`NoiseConfig` can add optional initialization noise to x position and velocity, plus an optional display-only `name`.
 
 Collision handling:
 - **Walls**: left at x < 20 (surface), right at x > 432 (center — see asymmetry note)

@@ -30,6 +30,7 @@ def play(
     p1: str = "builtin",
     p2: str = "builtin",
     winning_score: int = 15,
+    serve: str = "winner",
     seed: int | None = None,
     fps: int = 25,
     render: bool = True,
@@ -49,6 +50,7 @@ def play(
         p1: Player 1 — AI name, "human", or model path.
         p2: Player 2 — AI name, "human", or model path.
         winning_score: Score to win.
+        serve: Serve rule: "winner", "loser", "alternate", or "random".
         seed: Random seed.
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
@@ -136,6 +138,7 @@ def play(
         render_mode=render_mode,
         ai_policies=ai_policies,
         winning_score=winning_score,
+        serve=serve,
         noise=noise,
         p1_skin=resolved_p1_skin,
         p2_skin=resolved_p2_skin,
@@ -262,18 +265,26 @@ def _load_model_dir(dir_path: Path) -> tuple[Path, dict]:
 
 
 def _build_noise(args: argparse.Namespace) -> NoiseConfig | None:
-    if args.noise_x is None and args.noise_x_vel is None and args.noise_y_vel is None:
+    if args.noise_x is None and args.noise_x_vel is None and args.noise_y_vel is None and args.noise_name is None:
         return None
     return NoiseConfig(
         x_range=args.noise_x or 0,
         x_velocity_range=args.noise_x_vel or 0,
         y_velocity_range=args.noise_y_vel or 0,
+        name=args.noise_name,
     )
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play, watch, or record Pikachu Volleyball")
     parser.add_argument("--winning-score", type=int, default=15, help="Score to win (default: 15)")
+    parser.add_argument(
+        "--serve",
+        type=str,
+        default="winner",
+        choices=["winner", "loser", "alternate", "random"],
+        help="Serve rule: winner, loser, alternate, or random (default: winner)",
+    )
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument(
         "--p1",
@@ -294,6 +305,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--noise-x", type=int, default=None, metavar="N", help="Ball x position noise ±N pixels")
     parser.add_argument("--noise-x-vel", type=int, default=None, metavar="N", help="Ball x velocity noise ±N")
     parser.add_argument("--noise-y-vel", type=int, default=None, metavar="N", help="Ball y velocity noise ±N")
+    parser.add_argument(
+        "--noise-name",
+        type=str,
+        default=None,
+        metavar="NAME",
+        help="Display name for the noise config",
+    )
     parser.add_argument(
         "--p1-skin",
         type=str,
@@ -316,6 +334,7 @@ def main(argv: list[str] | None = None) -> None:
         p1=args.p1,
         p2=args.p2,
         winning_score=args.winning_score,
+        serve=args.serve,
         seed=args.seed,
         fps=args.fps,
         render=not args.no_render,

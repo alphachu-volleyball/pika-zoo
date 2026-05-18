@@ -21,13 +21,15 @@ from pika_zoo.engine.types import NoiseConfig, UserInput
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import build_observation, build_observation_space
 
+SERVE_RULES = {"winner", "loser", "alternate", "random"}
+
 
 class PikachuVolleyballEnv(ParallelEnv):
     """Pikachu Volleyball as a PettingZoo ParallelEnv.
 
     Args:
         winning_score: Score needed to win the game (default 15).
-        serve: Serve rule — "winner" (scorer serves), "alternate", or "random".
+        serve: Serve rule — "winner" (scorer serves), "loser", "alternate", or "random".
         ai_policies: Dict mapping agent name to AIPolicy. When set, the env
             calls policy.compute_action() before physics step, overriding
             the action for that agent.
@@ -54,6 +56,10 @@ class PikachuVolleyballEnv(ParallelEnv):
         p2_label: str = "",
     ) -> None:
         super().__init__()
+
+        if serve not in SERVE_RULES:
+            available = ", ".join(sorted(SERVE_RULES))
+            raise ValueError(f"Unknown serve rule: {serve!r}. Available: {available}")
 
         self.winning_score = winning_score
         self.serve = serve
@@ -97,9 +103,10 @@ class PikachuVolleyballEnv(ParallelEnv):
 
         self.agents = list(self.possible_agents)
 
+        self._scores = [0, 0]
+        self._is_player2_serve = self._get_serve()
         self._physics = PikaPhysics(self._np_random)
         self._physics.ball.initialize_for_new_round(self._is_player2_serve, noise=self.noise, rng=self._np_random)
-        self._scores = [0, 0]
         self._round_ended = False
         self._game_ended = False
 
@@ -179,7 +186,7 @@ class PikachuVolleyballEnv(ParallelEnv):
         if is_ball_touching_ground and not self._round_ended and not self._game_ended:
             if self._physics.ball.punch_effect_x < GROUND_HALF_WIDTH:
                 # Ball landed on player_1's side → player_2 scores
-                self._is_player2_serve = True
+                scorer_is_player2 = True
                 self._scores[1] += 1
                 rewards = {"player_1": -1.0, "player_2": 1.0}
                 if self._scores[1] >= self.winning_score:
@@ -189,7 +196,7 @@ class PikachuVolleyballEnv(ParallelEnv):
                     self._physics.player2.game_ended = True
             else:
                 # Ball landed on player_2's side → player_1 scores
-                self._is_player2_serve = False
+                scorer_is_player2 = False
                 self._scores[0] += 1
                 rewards = {"player_1": 1.0, "player_2": -1.0}
                 if self._scores[0] >= self.winning_score:
@@ -197,6 +204,7 @@ class PikachuVolleyballEnv(ParallelEnv):
                     self._physics.player1.is_winner = True
                     self._physics.player1.game_ended = True
                     self._physics.player2.game_ended = True
+            self._is_player2_serve = self._get_serve(scorer_is_player2)
             self._round_ended = True
 
         terminations = {agent: self._game_ended for agent in self.possible_agents}
@@ -226,6 +234,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._scores,
             metadata={
                 "noise": self.noise,
+                "serve": self.serve,
                 "p1_label": self._p1_label,
                 "p2_label": self._p2_label,
             },
@@ -294,12 +303,19 @@ class PikachuVolleyballEnv(ParallelEnv):
             "player_2": {**base, "events": events},
         }
 
-    def _get_serve(self) -> bool:
+    def _get_serve(self, scorer_is_player2: bool | None = None) -> bool:
         """Determine who serves. Returns True if player 2 serves."""
-        if self.serve == "winner":
-            return self._is_player2_serve
-        elif self.serve == "random":
+        if self.serve == "random":
             assert self._np_random is not None
             return bool(self._np_random.integers(0, 2))
-        else:  # alternate
+
+        if scorer_is_player2 is None:
+            return False
+
+        if self.serve == "winner":
+            return scorer_is_player2
+        elif self.serve == "loser":
+            return not scorer_is_player2
+        elif self.serve == "alternate":
             return (self._scores[0] + self._scores[1]) % 2 == 1
+        raise AssertionError(f"Unhandled serve rule: {self.serve!r}")

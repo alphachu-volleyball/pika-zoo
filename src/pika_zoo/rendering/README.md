@@ -15,7 +15,8 @@ The renderer draws metadata overlays on top of the game:
 
 - **Score**: current score at top of screen
 - **Player labels**: names below each player
-- **Mode label**: "normal" or `noise(x=5, xv=3, yv=0)` at top center
+- **Serve label**: `serve: winner`, `serve: loser`, `serve: alternate`, or `serve: random` at top center. The selected rule is blue.
+- **Noise label**: `noise: normal`, `noise: (x=5, xv=3, yv=0)`, or `noise: level1 (x=5, xv=3, yv=0)` below the serve label. The config tuple is blue.
 
 ## Skins
 
