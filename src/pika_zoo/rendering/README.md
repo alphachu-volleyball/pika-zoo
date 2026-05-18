@@ -15,7 +15,8 @@ The renderer draws metadata overlays on top of the game:
 
 - **Score**: current score at top of screen
 - **Player labels**: names below each player
-- **Mode label**: "normal" or `noise(x=5, xv=3, yv=0)` at top center
+- **Serve label**: `serve: winner`, `serve: loser`, or `serve: random` at top center
+- **Noise label**: `noise: normal` or `noise: (x=5, xv=3, yv=0)` below the serve label
 
 ## Skins
 

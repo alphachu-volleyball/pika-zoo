@@ -30,6 +30,7 @@ def play(
     p1: str = "builtin",
     p2: str = "builtin",
     winning_score: int = 15,
+    serve: str = "winner",
     seed: int | None = None,
     fps: int = 25,
     render: bool = True,
@@ -49,6 +50,7 @@ def play(
         p1: Player 1 — AI name, "human", or model path.
         p2: Player 2 — AI name, "human", or model path.
         winning_score: Score to win.
+        serve: Serve rule: "winner", "loser", or "random".
         seed: Random seed.
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
@@ -136,6 +138,7 @@ def play(
         render_mode=render_mode,
         ai_policies=ai_policies,
         winning_score=winning_score,
+        serve=serve,
         noise=noise,
         p1_skin=resolved_p1_skin,
         p2_skin=resolved_p2_skin,
@@ -274,6 +277,13 @@ def _build_noise(args: argparse.Namespace) -> NoiseConfig | None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play, watch, or record Pikachu Volleyball")
     parser.add_argument("--winning-score", type=int, default=15, help="Score to win (default: 15)")
+    parser.add_argument(
+        "--serve",
+        type=str,
+        default="winner",
+        choices=["winner", "loser", "random"],
+        help="Serve rule: winner, loser, or random (default: winner)",
+    )
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument(
         "--p1",
@@ -316,6 +326,7 @@ def main(argv: list[str] | None = None) -> None:
         p1=args.p1,
         p2=args.p2,
         winning_score=args.winning_score,
+        serve=args.serve,
         seed=args.seed,
         fps=args.fps,
         render=not args.no_render,

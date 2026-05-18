@@ -61,13 +61,14 @@ class TestPikachuVolleyballEnv:
             obs, rewards, terms, truncs, infos = e.step(actions)
             if infos["player_1"]["round_ended"]:
                 assert not any(terms.values())
+                scores = infos["player_1"]["scores"]
                 break
         else:
             pytest.fail("Round should end within 3000 frames")
 
         obs, rewards, terms, truncs, infos = e.step(actions)
         assert not infos["player_1"]["round_ended"]
-        return obs
+        return obs, scores
 
     def test_create_env(self):
         e = env()
@@ -91,15 +92,17 @@ class TestPikachuVolleyballEnv:
         with pytest.raises(ValueError, match="Unknown serve rule"):
             env(serve="coinflip")
 
-    def test_alternate_serve_rule_switches_sides_each_round(self):
-        e = env(winning_score=4, serve="alternate")
+    def test_loser_serve_rule_gives_next_serve_to_non_scorer(self):
+        e = env(winning_score=4, serve="loser")
         obs, _ = e.reset(seed=42)
         assert obs["player_1"][26] == pytest.approx(56.0)
 
-        obs = self._start_next_round(e)
+        obs, scores = self._start_next_round(e)
+        assert scores == [1, 0]
         assert obs["player_1"][26] == pytest.approx(376.0)
 
-        obs = self._start_next_round(e)
+        obs, scores = self._start_next_round(e)
+        assert scores == [1, 1]
         assert obs["player_1"][26] == pytest.approx(56.0)
 
     def test_random_serve_rule_is_seeded(self):
@@ -108,7 +111,7 @@ class TestPikachuVolleyballEnv:
             obs, _ = e.reset(seed=seed)
             sequence = [obs["player_1"][26]]
             for _ in range(4):
-                obs = self._start_next_round(e)
+                obs, _ = self._start_next_round(e)
                 sequence.append(obs["player_1"][26])
             return sequence
 

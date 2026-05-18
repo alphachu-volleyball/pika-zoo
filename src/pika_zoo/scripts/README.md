@@ -47,6 +47,7 @@ sampling experiments; the sampling sequence is controlled by `--seed`.
 |------|---------|-------------|
 | `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, model path (.zip), or model directory |
 | `--winning-score` | 15 | Score to win |
+| `--serve` | `winner` | Serve rule: `winner`, `loser`, or `random` |
 | `--seed` | None | Random seed |
 | `--fps` | 25 | Frame rate |
 | `--no-render` | off | Disable pygame window |

@@ -21,7 +21,7 @@ from pika_zoo.engine.types import NoiseConfig, UserInput
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import build_observation, build_observation_space
 
-SERVE_RULES = {"winner", "alternate", "random"}
+SERVE_RULES = {"winner", "loser", "random"}
 
 
 class PikachuVolleyballEnv(ParallelEnv):
@@ -29,7 +29,7 @@ class PikachuVolleyballEnv(ParallelEnv):
 
     Args:
         winning_score: Score needed to win the game (default 15).
-        serve: Serve rule — "winner" (scorer serves), "alternate", or "random".
+        serve: Serve rule — "winner" (scorer serves), "loser", or "random".
         ai_policies: Dict mapping agent name to AIPolicy. When set, the env
             calls policy.compute_action() before physics step, overriding
             the action for that agent.
@@ -234,6 +234,7 @@ class PikachuVolleyballEnv(ParallelEnv):
             self._scores,
             metadata={
                 "noise": self.noise,
+                "serve": self.serve,
                 "p1_label": self._p1_label,
                 "p2_label": self._p2_label,
             },
@@ -302,12 +303,17 @@ class PikachuVolleyballEnv(ParallelEnv):
             "player_2": {**base, "events": events},
         }
 
-    def _get_serve(self, scorer_is_player2: bool = False) -> bool:
+    def _get_serve(self, scorer_is_player2: bool | None = None) -> bool:
         """Determine who serves. Returns True if player 2 serves."""
+        if scorer_is_player2 is None and self.serve != "random":
+            return False
         if self.serve == "winner":
+            assert scorer_is_player2 is not None
             return scorer_is_player2
+        elif self.serve == "loser":
+            assert scorer_is_player2 is not None
+            return not scorer_is_player2
         elif self.serve == "random":
             assert self._np_random is not None
             return bool(self._np_random.integers(0, 2))
-        else:  # alternate
-            return (self._scores[0] + self._scores[1]) % 2 == 1
+        raise AssertionError(f"Unhandled serve rule: {self.serve!r}")

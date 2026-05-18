@@ -275,18 +275,21 @@ class PygameRenderer:
     # ------------------------------------------------------------------
 
     def _draw_mode_label(self, metadata: dict[str, Any]) -> None:
-        """Draw mode label at top center — 'normal' or noise config details."""
+        """Draw serve and noise labels at top center."""
         noise = metadata.get("noise")
+        serve = metadata.get("serve", "winner")
         assert self._screen is not None
         if self._mode_font is None:
             pygame.font.init()
             self._mode_font = pygame.font.SysFont("monospace", 14, bold=True)
+
+        serve_label = f"serve: {serve}"
         if noise is not None:
-            label = f"noise(x={noise.x_range}, xv={noise.x_velocity_range}, yv={noise.y_velocity_range})"
-            color = (0, 0, 255)
+            noise_label = f"noise: (x={noise.x_range}, xv={noise.x_velocity_range}, yv={noise.y_velocity_range})"
         else:
-            label = "normal"
-            color = (0, 0, 0)
-        rendered = self._mode_font.render(label, True, color)
-        x = SCREEN_WIDTH // 2 - rendered.get_width() // 2
-        self._screen.blit(rendered, (x, 10))
+            noise_label = "noise: normal"
+
+        for label, y in [(serve_label, 8), (noise_label, 24)]:
+            rendered = self._mode_font.render(label, True, (0, 0, 0))
+            x = SCREEN_WIDTH // 2 - rendered.get_width() // 2
+            self._screen.blit(rendered, (x, y))
