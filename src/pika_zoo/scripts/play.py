@@ -10,7 +10,7 @@ Usage:
 
 Controls (when render is on and player is human):
     Player 1: D(left) G(right) R(up) V(down) Z(power hit)
-    Player 2: Arrow keys + Enter (power hit)
+    Player 2: Arrow keys + Space (power hit)
 """
 
 from __future__ import annotations
