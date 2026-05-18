@@ -275,18 +275,34 @@ class PygameRenderer:
     # ------------------------------------------------------------------
 
     def _draw_mode_label(self, metadata: dict[str, Any]) -> None:
-        """Draw mode label at top center — 'normal' or noise config details."""
+        """Draw serve and noise labels at top center."""
         noise = metadata.get("noise")
+        serve = metadata.get("serve", "winner")
         assert self._screen is not None
         if self._mode_font is None:
             pygame.font.init()
             self._mode_font = pygame.font.SysFont("monospace", 14, bold=True)
+
+        blue = (0, 0, 255)
+        black = (0, 0, 0)
         if noise is not None:
-            label = f"noise(x={noise.x_range}, xv={noise.x_velocity_range}, yv={noise.y_velocity_range})"
-            color = (0, 0, 255)
+            noise_config = f"(x={noise.x_range}, xv={noise.x_velocity_range}, yv={noise.y_velocity_range})"
+            noise_name = f"{noise.name} " if noise.name else ""
+            noise_segments = [("noise: ", black), (noise_name, black), (noise_config, blue)]
         else:
-            label = "normal"
-            color = (0, 0, 0)
-        rendered = self._mode_font.render(label, True, color)
-        x = SCREEN_WIDTH // 2 - rendered.get_width() // 2
-        self._screen.blit(rendered, (x, 10))
+            noise_segments = [("noise: normal", black)]
+
+        self._draw_centered_text_segments([("serve: ", black), (str(serve), blue)], y=8)
+        self._draw_centered_text_segments(noise_segments, y=24)
+
+    def _draw_centered_text_segments(self, segments: list[tuple[str, tuple[int, int, int]]], y: int) -> None:
+        """Draw same-baseline text segments centered as one line."""
+        assert self._screen is not None
+        assert self._mode_font is not None
+
+        rendered_segments = [(self._mode_font.render(text, True, color), text) for text, color in segments if text]
+        total_width = sum(surface.get_width() for surface, _ in rendered_segments)
+        x = SCREEN_WIDTH // 2 - total_width // 2
+        for surface, _ in rendered_segments:
+            self._screen.blit(surface, (x, y))
+            x += surface.get_width()

@@ -11,7 +11,7 @@ from pika_zoo.engine.constants import (
 )
 from pika_zoo.engine.physics import Ball, PikaPhysics, Player
 from pika_zoo.engine.rand import rand
-from pika_zoo.engine.types import PlayerState, UserInput
+from pika_zoo.engine.types import NoiseConfig, PlayerState, UserInput
 
 
 class TestConstants:
@@ -49,6 +49,16 @@ class TestUserInput:
         assert ui.x_direction == 0
         assert ui.y_direction == 0
         assert ui.power_hit == 0
+
+
+class TestNoiseConfig:
+    def test_optional_name(self):
+        noise = NoiseConfig(x_range=5, x_velocity_range=2, y_velocity_range=1, name="level1")
+        assert noise.name == "level1"
+
+    def test_name_defaults_to_none(self):
+        noise = NoiseConfig(x_range=5, x_velocity_range=2, y_velocity_range=1)
+        assert noise.name is None
 
 
 class TestPlayerState:

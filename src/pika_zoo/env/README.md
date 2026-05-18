@@ -2,6 +2,17 @@
 
 PettingZoo `ParallelEnv` for Pikachu Volleyball. Two agents (`player_1`, `player_2`) act simultaneously each frame.
 
+## Serve Rule
+
+`PikachuVolleyballEnv(serve=...)` controls which side serves at the start of each round:
+
+| Value | Behavior |
+|-------|----------|
+| `"winner"` | Scorer serves the next round. This is the default and matches the original game, so use it for evaluation. |
+| `"loser"` | The player who lost the previous point serves the next round. |
+| `"alternate"` | Server alternates by round, independent of who scored. |
+| `"random"` | Server is sampled from the environment RNG every round. Use this for training to balance side exposure. |
+
 ## Action Space
 
 18 discrete actions covering all combinations of 3 x-directions, 3 y-directions, and 2 power_hit states.

@@ -47,6 +47,7 @@ sampling experiments; the sampling sequence is controlled by `--seed`.
 |------|---------|-------------|
 | `--p1`, `--p2` | `builtin` | Player spec: `"builtin"`, `"duckll"`, `"duckll:N"`, `"random"`, `"stone"`, `"human"`, model path (.zip), or model directory |
 | `--winning-score` | 15 | Score to win |
+| `--serve` | `winner` | Serve rule: `winner`, `loser`, `alternate`, or `random` |
 | `--seed` | None | Random seed |
 | `--fps` | 25 | Frame rate |
 | `--no-render` | off | Disable pygame window |
@@ -55,6 +56,7 @@ sampling experiments; the sampling sequence is controlled by `--seed`.
 | `--noise-x N` | None | Ball x position noise ±N pixels |
 | `--noise-x-vel N` | None | Ball x velocity noise ±N |
 | `--noise-y-vel N` | None | Ball y velocity noise ±N |
+| `--noise-name NAME` | None | Display name for the noise config |
 | `--p1-skin`, `--p2-skin` | auto | Override pikachu skin (azure, gray, lime, orange, white, yellow) |
 | `--p1-label`, `--p2-label` | auto | Override display label |
 | `--p1-keymap`, `--p2-keymap` | P1=original, P2=arrows | Keyboard layout preset |
