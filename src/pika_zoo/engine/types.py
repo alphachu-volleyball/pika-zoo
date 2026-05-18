@@ -16,11 +16,13 @@ class NoiseConfig:
 
     Each value specifies the ± range for uniform random noise.
     For example, x_range=5 means x += rng.integers(-5, 6).
+    The optional name is display-only and does not affect physics.
     """
 
     x_range: int
     x_velocity_range: int
     y_velocity_range: int
+    name: str | None = None
 
 
 class PlayerState(IntEnum):
