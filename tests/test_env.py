@@ -55,6 +55,20 @@ class TestActionConverter:
 
 
 class TestPikachuVolleyballEnv:
+    def _start_next_round(self, e):
+        actions = {"player_1": 0, "player_2": 0}
+        for _ in range(3000):
+            obs, rewards, terms, truncs, infos = e.step(actions)
+            if infos["player_1"]["round_ended"]:
+                assert not any(terms.values())
+                break
+        else:
+            pytest.fail("Round should end within 3000 frames")
+
+        obs, rewards, terms, truncs, infos = e.step(actions)
+        assert not infos["player_1"]["round_ended"]
+        return obs
+
     def test_create_env(self):
         e = env()
         assert e.possible_agents == ["player_1", "player_2"]
@@ -72,6 +86,34 @@ class TestPikachuVolleyballEnv:
         e.reset(seed=42)
         assert e.action_space("player_1").n == NUM_ACTIONS
         assert e.action_space("player_2").n == NUM_ACTIONS
+
+    def test_invalid_serve_rule(self):
+        with pytest.raises(ValueError, match="Unknown serve rule"):
+            env(serve="coinflip")
+
+    def test_alternate_serve_rule_switches_sides_each_round(self):
+        e = env(winning_score=4, serve="alternate")
+        obs, _ = e.reset(seed=42)
+        assert obs["player_1"][26] == pytest.approx(56.0)
+
+        obs = self._start_next_round(e)
+        assert obs["player_1"][26] == pytest.approx(376.0)
+
+        obs = self._start_next_round(e)
+        assert obs["player_1"][26] == pytest.approx(56.0)
+
+    def test_random_serve_rule_is_seeded(self):
+        def server_sequence(seed):
+            e = env(winning_score=6, serve="random")
+            obs, _ = e.reset(seed=seed)
+            sequence = [obs["player_1"][26]]
+            for _ in range(4):
+                obs = self._start_next_round(e)
+                sequence.append(obs["player_1"][26])
+            return sequence
+
+        assert server_sequence(42) == server_sequence(42)
+        assert server_sequence(42) != server_sequence(43)
 
     def test_observation_space(self):
         e = env()
