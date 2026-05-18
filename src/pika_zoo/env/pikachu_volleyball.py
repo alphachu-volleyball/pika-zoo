@@ -21,7 +21,7 @@ from pika_zoo.engine.types import NoiseConfig, UserInput
 from pika_zoo.env.actions import NUM_ACTIONS, ActionConverter
 from pika_zoo.env.observations import build_observation, build_observation_space
 
-SERVE_RULES = {"winner", "loser", "random"}
+SERVE_RULES = {"winner", "loser", "alternate", "random"}
 
 
 class PikachuVolleyballEnv(ParallelEnv):
@@ -29,7 +29,7 @@ class PikachuVolleyballEnv(ParallelEnv):
 
     Args:
         winning_score: Score needed to win the game (default 15).
-        serve: Serve rule — "winner" (scorer serves), "loser", or "random".
+        serve: Serve rule — "winner" (scorer serves), "loser", "alternate", or "random".
         ai_policies: Dict mapping agent name to AIPolicy. When set, the env
             calls policy.compute_action() before physics step, overriding
             the action for that agent.
@@ -305,15 +305,17 @@ class PikachuVolleyballEnv(ParallelEnv):
 
     def _get_serve(self, scorer_is_player2: bool | None = None) -> bool:
         """Determine who serves. Returns True if player 2 serves."""
-        if scorer_is_player2 is None and self.serve != "random":
-            return False
-        if self.serve == "winner":
-            assert scorer_is_player2 is not None
-            return scorer_is_player2
-        elif self.serve == "loser":
-            assert scorer_is_player2 is not None
-            return not scorer_is_player2
-        elif self.serve == "random":
+        if self.serve == "random":
             assert self._np_random is not None
             return bool(self._np_random.integers(0, 2))
+
+        if scorer_is_player2 is None:
+            return False
+
+        if self.serve == "winner":
+            return scorer_is_player2
+        elif self.serve == "loser":
+            return not scorer_is_player2
+        elif self.serve == "alternate":
+            return (self._scores[0] + self._scores[1]) % 2 == 1
         raise AssertionError(f"Unhandled serve rule: {self.serve!r}")

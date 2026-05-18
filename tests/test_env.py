@@ -105,6 +105,17 @@ class TestPikachuVolleyballEnv:
         assert scores == [1, 1]
         assert obs["player_1"][26] == pytest.approx(56.0)
 
+    def test_alternate_serve_rule_switches_sides_each_round(self):
+        e = env(winning_score=4, serve="alternate")
+        obs, _ = e.reset(seed=42)
+        assert obs["player_1"][26] == pytest.approx(56.0)
+
+        obs, _ = self._start_next_round(e)
+        assert obs["player_1"][26] == pytest.approx(376.0)
+
+        obs, _ = self._start_next_round(e)
+        assert obs["player_1"][26] == pytest.approx(56.0)
+
     def test_random_serve_rule_is_seeded(self):
         def server_sequence(seed):
             e = env(winning_score=6, serve="random")

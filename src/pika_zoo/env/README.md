@@ -10,6 +10,7 @@ PettingZoo `ParallelEnv` for Pikachu Volleyball. Two agents (`player_1`, `player
 |-------|----------|
 | `"winner"` | Scorer serves the next round. This is the default and matches the original game, so use it for evaluation. |
 | `"loser"` | The player who lost the previous point serves the next round. |
+| `"alternate"` | Server alternates by round, independent of who scored. |
 | `"random"` | Server is sampled from the environment RNG every round. Use this for training to balance side exposure. |
 
 ## Action Space

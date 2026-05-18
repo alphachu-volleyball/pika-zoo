@@ -50,7 +50,7 @@ def play(
         p1: Player 1 — AI name, "human", or model path.
         p2: Player 2 — AI name, "human", or model path.
         winning_score: Score to win.
-        serve: Serve rule: "winner", "loser", or "random".
+        serve: Serve rule: "winner", "loser", "alternate", or "random".
         seed: Random seed.
         fps: Frame rate (for render and/or recording).
         render: Show pygame window.
@@ -281,8 +281,8 @@ def main(argv: list[str] | None = None) -> None:
         "--serve",
         type=str,
         default="winner",
-        choices=["winner", "loser", "random"],
-        help="Serve rule: winner, loser, or random (default: winner)",
+        choices=["winner", "loser", "alternate", "random"],
+        help="Serve rule: winner, loser, alternate, or random (default: winner)",
     )
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument(
